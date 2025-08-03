@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation"
 import Image from "next/image"
 import { CerrarSesion } from "@/components/icons/sidebar-icons"
 import { SIDEBAR_ITEMS } from "@/lib/constants"
+import { useAuth } from "@/hooks/useAuth"
 
 export function SidebarNav() {
   const pathname = usePathname()
+  const { logout } = useAuth()
 
   return (
     <>
@@ -34,7 +36,11 @@ export function SidebarNav() {
       </div>
 
       <div className="p-5" style={{ paddingTop: '72px' }}>
-        <button className="w-full flex items-center gap-2.5 px-5 py-5 transition-colors rounded-2xl" style={{ backgroundColor: '#EBE6FC' }}>
+        <button 
+          onClick={logout}
+          className="w-full flex items-center gap-2.5 px-5 py-5 transition-colors rounded-2xl hover:bg-white/10" 
+          style={{ backgroundColor: '#EBE6FC' }}
+        >
           <CerrarSesion />
           <span className="bg-gradient-to-r from-[#DB086E] to-[#3A05DF] bg-clip-text text-transparent font-semibold">Cerrar Sesión</span>
         </button>

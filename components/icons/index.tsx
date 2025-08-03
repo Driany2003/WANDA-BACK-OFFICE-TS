@@ -1,5 +1,15 @@
 import React from 'react'
 
+export const checklogin = () => {
+  return (
+    <svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M8.5 16C12.9183 16 16.5 12.4183 16.5 8C16.5 3.58172 12.9183 0 8.5 0C4.08172 0 0.5 3.58172 0.5 8C0.5 12.4183 4.08172 16 8.5 16Z" fill="#B09BF2"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M13.4496 6.29252C13.8401 5.902 13.8401 5.26883 13.4496 4.87831C13.0591 4.48778 12.4259 4.48778 12.0354 4.87831L7.08564 9.82805L4.96432 7.70673C4.57379 7.31621 3.94063 7.31621 3.5501 7.70673C3.15958 8.09726 3.15958 8.73042 3.5501 9.12095L6.37853 11.9494C6.76905 12.3399 7.40222 12.3399 7.79274 11.9494L13.4496 6.29252Z" fill="#FBFBFB"/>
+    </svg>    
+  )
+}
+
+
 export const AgregarBilleteraIcon = () => {
   return (
 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

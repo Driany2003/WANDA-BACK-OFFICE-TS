@@ -5,8 +5,12 @@ import { Search } from "lucide-react"
 import { MobileSidebar } from "@/components/mobile-sidebar"
 import { NotificationsDropdown } from "@/components/modals/notifications-dropdown"
 import { TrofeoIcon, WCIcon } from "@/components/icons/header-icons"
+import { useAuth } from "@/hooks/useAuth"
+import { GradientButton } from "@/components/ui/gradient-button"
 
 export function Header() {
+  const { isAuthenticated, login, logout } = useAuth()
+
   return (
     <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-4">
       <div className="flex items-center justify-between">
