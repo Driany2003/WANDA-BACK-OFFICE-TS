@@ -1,39 +1,69 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-
 import type React from "react"
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { X } from "lucide-react"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 
 interface CustomModalProps {
   isOpen: boolean
   onClose: () => void
-  title: string
+  title?: string
   children: React.ReactNode
   className?: string
+  showHeader?: boolean
+  customHeader?: React.ReactNode
+  breadcrumbs?: string[]
 }
 
-export function 
-CustomModal({ isOpen, onClose, title, children, className }: CustomModalProps) {
+export function CustomModal({ 
+  isOpen, 
+  onClose, 
+  title, 
+  children, 
+  className,
+  showHeader = true,
+  customHeader,
+  breadcrumbs
+}: CustomModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-       className={`p-6 [&>button]:hidden w-[750px] max-w-[95vw] ${className || ''}`}
-       style={className ? { 
+        className={`p-0 [&>button]:hidden w-[750px] max-w-[95vw] rounded-xl ${className || ''}`}
+        style={className ? { 
           maxWidth: 'none', 
           width: '780px',
           height: className.includes('h-[') ? 'auto' : '100%'
         } : {}}
       >
-        <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-gray-200">
-          <DialogTitle className="text-xl font-bold text-gray-900">{title}</DialogTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="absolute right-4 top-4 hover:bg-gray-100">
-            <X className="w-5 h-5 text-gray-500" />
-          </Button>
-        </DialogHeader>
-        <div className="py-4 flex-1 overflow-y-auto">{children}</div>
+        {/* Header personalizado o por defecto */}
+        {showHeader && (
+          <div className="p-6 border-b border-gray-200 bg-[#FEFEFE]">
+            {customHeader ? (
+              customHeader
+            ) : (
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xl font-bold text-black">{title}</h2>
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {breadcrumbs && (
+              <p className="text-sm text-[#3A05DF]">
+                {breadcrumbs.join(' > ')}
+              </p>
+            )}
+          </div>
+        )}
+        
+        {/* Contenido */}
+        <div className="flex-1 overflow-y-auto">
+          {children}
+        </div>
       </DialogContent>
     </Dialog>
   )

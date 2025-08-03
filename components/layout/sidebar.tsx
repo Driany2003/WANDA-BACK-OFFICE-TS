@@ -22,10 +22,10 @@ export function Sidebar() {
       <div className="flex items-center justify-center h-75 mb-25 pt-10">
         <Link href="/concursos" className="flex items-center gap-2 font-semibold">
           <Image 
-            src="/wc.png" 
+            src="/WC.png" 
             alt="WC Logo" 
-            width={1200} 
-            height={1200} 
+            width={280} 
+            height={280} 
             className="drop-shadow-lg"
           />
           <span className="sr-only">Gaming Platform</span>

@@ -5,9 +5,9 @@ import { Card } from "@/components/ui/card"
 import { RotateCcw } from "lucide-react"
 import type { ContestTableData } from "@/types"
 import { DateRangeSelect } from "./date-range-select"
-import { StatusIcon } from "@/components/ui/status-icon"
+import { Badge } from "@/components/ui/badge"
 import { WcBadge } from "@/components/ui/wc-badge"
-import { WCIcon } from "@/components/icons/mis-concursos-icons"
+import { WcIcon } from "@/components/icons"
 
 interface ContestTableProps {
   data: ContestTableData[]
@@ -70,14 +70,16 @@ export function ContestTable({ data, title = "Historial", showStatus = false, sh
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">{item.concurso}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">{item.fecha}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <div className="flex justify-center">
-                      <WCIcon value={item.wcUsadas} />
+                    <div className="flex justify-center items-center gap-2">
+                      <WcIcon />
+                      <span className="text-sm font-normal text-gray-900">{item.wcUsadas}</span>
                     </div>
                   </td>
                   {showReward && (
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex justify-center">
-                        <WCIcon value={item.recompensa} />
+                      <div className="flex justify-center items-center gap-2">
+                        <WcIcon />
+                        <span className="text-sm font-normal text-gray-900">{item.recompensa}</span>
                       </div>
                     </td>
                   )}
@@ -85,7 +87,13 @@ export function ContestTable({ data, title = "Historial", showStatus = false, sh
                   {showStatus && (
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex justify-center">
-                        <StatusIcon status={item.estado} />
+                        <Badge className={
+                          item.estado === "Cerrado" 
+                            ? "bg-[#6137E5] text-[#FBFBFB] border border-[#6137E5] hover:bg-[#6137E5] hover:text-[#FBFBFB] hover:border-[#6137E5]"
+                            : "bg-[#FBFBFB] text-[#6137E5] border border-[#6137E5] hover:bg-[#FBFBFB] hover:text-[#6137E5] hover:border-[#6137E5]"
+                        }>
+                          {item.estado}
+                        </Badge>
                       </div>
                     </td>
                   )}

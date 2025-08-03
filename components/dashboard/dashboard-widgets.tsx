@@ -1,9 +1,17 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Trophy, Award, TrendingDown, MoreVertical } from "lucide-react"
-import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
+import { Award, TrendingDown, MoreVertical, Download } from "lucide-react"
+import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from "recharts"
 import { Button } from "@/components/ui/button"
+import { DashboardIcon, RecompensasIcon, PerdidasIcon } from "@/components/icons/dashboard-icons"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { DashboardStats } from "@/types"
 
 interface DashboardWidgetsProps {
@@ -11,149 +19,336 @@ interface DashboardWidgetsProps {
 }
 
 export function DashboardWidgets({ stats }: DashboardWidgetsProps) {
+  const [selectedRecompensa, setSelectedRecompensa] = useState<string | null>(null)
+  const [selectedPerdida, setSelectedPerdida] = useState<string | null>(null)
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-8">
       {/* Concursos Widget */}
-      <Card className="lg:col-span-1">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-purple-600" />
-            Concursos
-          </CardTitle>
-          <Button variant="ghost" size="icon">
-            <MoreVertical className="w-4 h-4 text-muted-foreground" />
-          </Button>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center gap-4 p-4">
-          {/* Donut Chart Placeholder */}
-          <div className="flex items-center justify-center relative w-32 h-32 shrink-0">
-            <div className="w-full h-full rounded-full border-6 border-purple-200"></div>
-            <div
-              className="absolute top-0 left-0 w-full h-full rounded-full border-6 border-purple-600"
-              style={{
-                clipPath: "polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 50% 100%)",
-              }}
-            ></div>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs font-medium text-gray-600">Total</span>
-              <span className="text-xl font-bold text-gray-900">{stats.concursos.total}%</span>
-            </div>
+      <Card className="h-full w-[456px] rounded-2xl shadow-[0_4px_6px_-1px_rgba(137,2,119,0.15)] overflow-hidden">
+        <div className="bg-[#FEFEFE] px-6 py-4 border-b border-gray-200">
+          <div className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <DashboardIcon />
+              Concursos
+            </CardTitle>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Generar reporte
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        <div className="bg-[#FBFBFB] flex flex-col items-center justify-center gap-4 p-4">
+          {/* Title */}
+          <div className="text-lg font-medium text-[#333333] mb-6">Total</div>
+          {/* Donut Chart */}
+          <div className="flex items-center justify-center relative w-48 h-48 shrink-0 mb-6">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Carritos', value: 75, color: '#6137E5' },
+                    { name: 'Cartas', value: 25, color: '#C4B4F5' }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={0}
+                  dataKey="value"
+                  startAngle={90}
+                >
+                  {[
+                    { name: 'Carritos', value: 75, color: '#6137E5' },
+                    { name: 'Cartas', value: 25, color: '#C4B4F5' }
+                  ].map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
           </div>
 
-          <div className="space-y-3 w-full">
-            <div className="flex items-center justify-center">
-              <span className="text-sm text-gray-500">Concursos</span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 p-2 rounded-md bg-purple-50">
-                <div className="w-2 h-2 bg-purple-600 rounded"></div>
-                <span className="text-xs text-gray-800 font-medium">{stats.concursos.carritos}% Carritos</span>
+          <div className="w-full flex justify-center mb-4 ">
+            <div className="flex flex-col items-center" style={{ gap: '23px' }}>
+              <div className="flex items-center rounded-md bg-[#F2F2F2] w-[229px] h-[52px] px-3 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.08)]">
+                <div className="flex items-center gap-2 ml-3">
+                  <span className="text-[24px] text-[#777777] font-bold">100%</span>
+                  <span className="text-base text-[#777777] font-medium">Concursos</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 p-2 rounded-md bg-purple-50">
-                <div className="w-2 h-2 bg-purple-300 rounded"></div>
-                <span className="text-xs text-gray-800 font-medium">{stats.concursos.cartas}% Cartas</span>
+              <div className="flex items-center gap-3 rounded-md bg-[#FEFEFE] w-[229px] h-[52px] px-3 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.08)] relative overflow-hidden">
+                <div className="w-2 h-[52px] bg-gradient-to-b from-[#6137E5] to-[#6137E5] shadow-sm ml-0 absolute left-0 top-0 rounded-l-md"></div>
+                <div className="flex items-center gap-5 ml-3">
+                  <span className="text-[24px] text-[#777777] font-bold">{stats.concursos.carritos}%</span>
+                  <span className="text-base text-[#777777] font-medium">Carritos</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-md bg-[#FEFEFE] w-[229px] h-[52px] px-3 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.08)] relative overflow-hidden">
+                <div className="w-2 h-[52px] bg-gradient-to-b from-[#C4B4F5] to-[#C4B4F5] shadow-sm ml-0 absolute left-0 top-0 rounded-l-md"></div>
+                <div className="flex items-center gap-5 ml-3">
+                  <span className="text-[24px] text-[#777777] font-bold">{stats.concursos.cartas}%</span>
+                  <span className="text-base text-[#777777] font-medium">Cartas</span>
+                </div>
               </div>
             </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Wrapper for Recompensas and Pérdidas */}
-      <div className="grid grid-cols-1 gap-6 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6">
         {/* Recompensas Widget */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Award className="w-5 h-5 text-purple-600" />
+        <Card className="h-full w-[546px] rounded-2xl shadow-[0_4px_6px_-1px_rgba(137,2,119,0.15)] overflow-hidden">
+          <div className="bg-[#FEFEFE] px-6 py-4 border-b border-gray-200">
+            <div className="flex flex-row items-center justify-between">
+                          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <RecompensasIcon />
               Recompensas
             </CardTitle>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="w-4 h-4 text-muted-foreground" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 mb-4">
-              <span className="text-sm text-purple-600 font-medium">WC</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Generar reporte
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             </div>
+          </div>
+          <div className="bg-[#FBFBFB] p-6">
 
-            <div className="h-[120px]">
+            <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsBarChart data={stats.recompensas}>
                   <XAxis
                     dataKey="day"
-                    stroke="#888888"
+                    stroke="#777777"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
                     padding={{ left: 10, right: 10 }}
+                    tick={(props) => {
+                      const { x, y, payload } = props;
+                      const isSelected = selectedRecompensa === payload.value;
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text
+                            x={0}
+                            y={0}
+                            dy={16}
+                            textAnchor="middle"
+                            fill={isSelected ? "#DB086E" : "#777777"}
+                            fontSize={12}
+                            fontWeight="500"
+                          >
+                            {payload.value}
+                          </text>
+                        </g>
+                      );
+                    }}
                   />
                   <YAxis
-                    stroke="#888888"
+                    stroke="#333333"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
+                    domain={[0, 40]}
+                    ticks={[0, 10, 20, 30, 40]}
+                    interval={0}
                     tickFormatter={(value) => `${value}`}
+                    tick={(props) => {
+                      const { x, y, payload } = props;
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text
+                            x={0}
+                            y={0}
+                            dy={3}
+                            textAnchor="end"
+                            fill={payload.value === 40 ? "#DB086E" : "#333333"}
+                            fontSize={12}
+                            fontWeight="500"
+                          >
+                            {payload.value === 40 ? "WC" : payload.value}
+                          </text>
+                        </g>
+                      );
+                    }}
                   />
-                  <Tooltip cursor={{ fill: "transparent" }} />
+                  <Tooltip 
+                    cursor={{ fill: "transparent" }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 relative">
+                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-0 h-0 border-l-4 border-l-gray-200 border-t-4 border-t-transparent border-b-4 border-b-transparent"></div>
+                            <div className="text-sm font-medium text-gray-800">
+                              {payload[0].value} WC
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
                   <Bar
                     dataKey="value"
-                    fill="#A78BFA" // purple-400
                     radius={[4, 4, 0, 0]}
-                    // Example of highlighting a specific day, if needed
-                    // fill={(data) => (data.day === "Ju" ? "#7C3AED" : "#A78BFA")}
-                  />
+                    onClick={(data) => {
+                      if (data && data.payload) {
+                        const day = data.payload.day
+                        setSelectedRecompensa(selectedRecompensa === day ? null : day)
+                      }
+                    }}
+                  >
+                    {stats.recompensas.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={selectedRecompensa === entry.day ? "#B09BF2" : "#EBE6FC"}
+                      />
+                    ))}
+                  </Bar>
                 </RechartsBarChart>
               </ResponsiveContainer>
             </div>
-          </CardContent>
+          </div>
         </Card>
 
         {/* Pérdidas Widget */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <TrendingDown className="w-5 h-5 text-purple-600" />
+        <Card className="h-full w-[546px] rounded-2xl shadow-[0_4px_6px_-1px_rgba(137,2,119,0.15)] overflow-hidden">
+          <div className="bg-[#FEFEFE] px-6 py-4 border-b border-gray-200">
+            <div className="flex flex-row items-center justify-between">
+                          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <PerdidasIcon />
               Pérdidas
             </CardTitle>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="w-4 h-4 text-muted-foreground" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 mb-4">
-              <span className="text-sm text-purple-600 font-medium">WC</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Generar reporte
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             </div>
+          </div>
+          <div className="bg-[#FBFBFB] p-6">
 
-            <div className="h-[120px]">
+            <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsBarChart data={stats.perdidas}>
                   <XAxis
                     dataKey="day"
-                    stroke="#888888"
+                    stroke="#777777"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
                     padding={{ left: 10, right: 10 }}
+                    tick={(props) => {
+                      const { x, y, payload } = props;
+                      const isSelected = selectedPerdida === payload.value;
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text
+                            x={0}
+                            y={0}
+                            dy={16}
+                            textAnchor="middle"
+                            fill={isSelected ? "#DB086E" : "#777777"}
+                            fontSize={12}
+                            fontWeight="500"
+                          >
+                            {payload.value}
+                          </text>
+                        </g>
+                      );
+                    }}
                   />
                   <YAxis
-                    stroke="#888888"
+                    stroke="#333333"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
+                    domain={[0, 40]}
+                    ticks={[0, 10, 20, 30, 40]}
+                    interval={0}
                     tickFormatter={(value) => `${value}`}
+                    tick={(props) => {
+                      const { x, y, payload } = props;
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text
+                            x={0}
+                            y={0}
+                            dy={3}
+                            textAnchor="end"
+                            fill={payload.value === 40 ? "#DB086E" : "#333333"}
+                            fontSize={12}
+                            fontWeight="500"
+                          >
+                            {payload.value === 40 ? "WC" : payload.value}
+                          </text>
+                        </g>
+                      );
+                    }}
                   />
-                  <Tooltip cursor={{ fill: "transparent" }} />
+                  <Tooltip 
+                    cursor={{ fill: "transparent" }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 relative">
+                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-0 h-0 border-l-4 border-l-gray-200 border-t-4 border-t-transparent border-b-4 border-b-transparent"></div>
+                            <div className="text-sm font-medium text-gray-800">
+                              {payload[0].value} WC
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
                   <Bar
                     dataKey="value"
-                    fill="#A78BFA" // purple-400
                     radius={[4, 4, 0, 0]}
-                    // Example of highlighting a specific day, if needed
-                    // fill={(data) => (data.day === "Ju" ? "#7C3AED" : "#A78BFA")}
-                  />
+                    onClick={(data) => {
+                      if (data && data.payload) {
+                        const day = data.payload.day
+                        setSelectedPerdida(selectedPerdida === day ? null : day)
+                      }
+                    }}
+                  >
+                    {stats.perdidas.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={selectedPerdida === entry.day ? "#B09BF2" : "#EBE6FC"}
+                      />
+                    ))}
+                  </Bar>
                 </RechartsBarChart>
               </ResponsiveContainer>
             </div>
-          </CardContent>
+          </div>
         </Card>
       </div>
     </div>

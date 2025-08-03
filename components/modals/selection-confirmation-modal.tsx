@@ -1,9 +1,9 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ChevronRight, X } from "lucide-react"
+
 import Image from "next/image"
+import { CustomModal } from "@/components/shared/custom-modal"
 import type { SelectedOption } from "@/types"
 
 interface SelectionConfirmationModalProps {
@@ -24,22 +24,14 @@ export function SelectionConfirmationModal({
   onConfirm,
 }: SelectionConfirmationModalProps) {
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] p-6">
-        <DialogHeader className="flex flex-row items-center justify-between pb-4">
-          <DialogTitle className="text-2xl font-bold">Opción seleccionada</DialogTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="h-6 w-6" />
-            <span className="sr-only">Cerrar</span>
-          </Button>
-        </DialogHeader>
-        <div className="flex items-center text-sm text-gray-500 mb-4">
-          <span>{contestType}</span>
-          <ChevronRight className="h-4 w-4 mx-1" />
-          <span>{contestName}</span>
-          <ChevronRight className="h-4 w-4 mx-1" />
-          <span className="font-semibold text-purple-600">Opción seleccionada</span>
-        </div>
+    <CustomModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Opción seleccionada"
+      breadcrumbs={[contestType, contestName, "Opción seleccionada"]}
+      className="sm:max-w-[425px]"
+    >
+      <div className="p-6 space-y-4">
         <div className="text-center space-y-4">
           <p className="text-lg font-semibold text-gray-800">¡La carrera está por comenzar!</p>
           <p className="text-gray-600">Has seleccionado ({selectedOptions.length}) opciones en la carrera</p>
@@ -61,7 +53,7 @@ export function SelectionConfirmationModal({
           </div>
           <p className="text-lg font-semibold text-gray-800">¿Desea continuar?</p>
         </div>
-        <DialogFooter className="flex flex-col sm:flex-row gap-4 pt-6">
+        <div className="flex flex-col sm:flex-row gap-4 pt-6 justify-center">
           <Button
             variant="outline"
             onClick={onClose}
@@ -75,8 +67,8 @@ export function SelectionConfirmationModal({
           >
             Aceptar
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </CustomModal>
   )
 }

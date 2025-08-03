@@ -1,9 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { RotateCcw } from "lucide-react"
+import { WcIcon } from "@/components/icons"
 import type { HistoryEntry } from "@/types"
 
 interface HistoryTableProps {
@@ -16,18 +16,34 @@ export function HistoryTable({ data }: HistoryTableProps) {
       case "En proceso":
       case "Procesando":
       case "Activada":
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">{status}</Badge>
+        return (
+          <Badge className="bg-[#FBFBFB] text-[#6137E5] border border-[#6137E5] hover:bg-[#FBFBFB] hover:text-[#6137E5] hover:border-[#6137E5]">
+            En proceso
+          </Badge>
+        )
       case "Completado":
       case "Aprobado":
       case "Ganado":
       case "Canjeada":
-        return <Badge className="bg-green-100 text-green-800 border-green-200">{status}</Badge>
+        return (
+          <Badge className="bg-[#6137E5] text-[#FBFBFB] border border-[#6137E5] hover:bg-[#6137E5] hover:text-[#FBFBFB] hover:border-[#6137E5]">
+            Aprobado
+          </Badge>
+        )
       case "Perdido":
       case "Cancelado":
       case "Expirada":
-        return <Badge className="bg-red-100 text-red-800 border-red-200">{status}</Badge>
+        return (
+          <Badge className="bg-[#FBFBFB] text-[#6137E5] border border-[#6137E5] hover:bg-[#FBFBFB] hover:text-[#6137E5] hover:border-[#6137E5]">
+            Rechazado
+          </Badge>
+        )
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return (
+          <Badge className="bg-[#FBFBFB] text-[#6137E5] border border-[#6137E5] hover:bg-[#FBFBFB] hover:text-[#6137E5] hover:border-[#6137E5]">
+            {status}
+          </Badge>
+        )
     }
   }
 
@@ -45,10 +61,10 @@ export function HistoryTable({ data }: HistoryTableProps) {
       {/* Tabla */}
       <div className="overflow-hidden rounded-t-xl" style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.15)' }}>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[800px]">
             <thead className="bg-[#FEFEFE]" style={{ boxShadow: '0 2px 10px rgba(219, 8, 110, 0.08)' }}>
               <tr>
-                <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider min-w-[120px]">
+                <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider min-w-[150px]">
                   Operación
                 </th>
                 <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
@@ -71,13 +87,11 @@ export function HistoryTable({ data }: HistoryTableProps) {
                     borderBottom: index < data.length - 1 ? '1px solid #A4A4A4' : 'none'
                   }}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center min-w-[120px]">{item.operation}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center min-w-[150px]">{item.operation}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">{item.date}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <div className="flex justify-center items-center gap-2">
-                      <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-bold text-white">WC</span>
-                      </div>
+                      <WcIcon />
                       <span className="text-sm font-normal text-gray-900">{item.amount}</span>
                     </div>
                   </td>

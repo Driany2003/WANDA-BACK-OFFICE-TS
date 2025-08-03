@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { GradientButton } from "@/components/ui/gradient-button"
 import { ChevronLeft, Trophy, PawPrint } from "lucide-react"
 import Image from "next/image"
 import { ANIMAL_GAMES, CONTEST_GAMES } from "@/lib/constants"
@@ -142,12 +143,12 @@ export default function GameDetailPage({ params }: GameDetailPageProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
-          <Button
-            className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-2"
+          <GradientButton
+            className="px-8 py-2"
             onClick={handleConcursarClick} // Trigger modal from here
           >
             Concursar
-          </Button>
+          </GradientButton>
         </div>
       </div>
 

@@ -26,8 +26,10 @@ export function Header() {
             <TrofeoIcon />
             <span className="ml-2">Concursar ahora</span>
           </Button>
-          <div className="flex items-center gap-2 bg-yellow-400 rounded-full px-3 py-1">
-            <WCIcon />
+          <div className="flex items-center gap-3 bg-white rounded-lg px-4 py-2 shadow-md border border-gray-200">
+            <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center">
+              <span className="text-xs font-bold text-gray-800">WC</span>
+            </div>
             <span className="text-sm font-medium text-gray-800">15</span>
             <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

@@ -3,10 +3,10 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { X, Trash2, DollarSign, Percent, Bell } from "lucide-react"
+import { Trash2, DollarSign, Percent, Bell } from "lucide-react"
+import { CustomModal } from "@/components/shared/custom-modal"
 import type { Notification } from "@/types"
 
 interface AllNotificationsModalProps {
@@ -64,17 +64,13 @@ export function AllNotificationsModal({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
-        <DialogHeader className="flex flex-row items-center justify-between p-6 border-b">
-          <DialogTitle className="text-2xl font-bold">Notificaciones</DialogTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="h-6 w-6" />
-            <span className="sr-only">Cerrar</span>
-          </Button>
-        </DialogHeader>
-
-        <div className="flex flex-1 overflow-hidden">
+    <CustomModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Notificaciones"
+      className="max-w-4xl h-[90vh]"
+    >
+      <div className="flex flex-1 overflow-hidden">
           {/* Left Pane: Notification List */}
           <div className="w-1/2 border-r p-6 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
@@ -164,7 +160,6 @@ export function AllNotificationsModal({
             )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
-  )
+      </CustomModal>
+    )
 }

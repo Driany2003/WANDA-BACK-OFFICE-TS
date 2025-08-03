@@ -8,7 +8,7 @@ import { ChevronDown, ChevronUp } from "lucide-react"
 import Image from "next/image"
 import { WarningIcon, WcIconNegro } from "@/components/icons/transaction-icons"
 import { NotificationToast } from "@/components/ui/notification-toast"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { CustomModal } from "@/components/shared/custom-modal"
 
 const PAYMENT_METHODS = [
   {
@@ -244,16 +244,13 @@ export function WithdrawalRequest() {
 
       {/* Modal de confirmación */}
       {showConfirmationModal && (
-        <Dialog open={showConfirmationModal} onOpenChange={handleCancelSolicitud}>
-          <DialogContent className="p-6 w-[750px] max-w-[95vw]">
-            <DialogHeader className="flex flex-col items-start justify-between pb-4 border-b border-gray-200">
-              <div className="w-full text-start">
-                <DialogTitle className="text-xl font-bold text-gray-900 mb-2 text-start">Solicitud de retiro</DialogTitle>
-                <p className="text-sm text-start" style={{ color: '#3A05DF' }}>Mi cuenta {'>'} Transacciones {'>'} Solicitar retiro WC</p>
-              </div>
-            </DialogHeader>
-            <div className="py-4 flex-1 overflow-y-auto">
-              <div className="space-y-6">
+        <CustomModal
+          isOpen={showConfirmationModal}
+          onClose={handleCancelSolicitud}
+          title="Solicitud de retiro"
+          breadcrumbs={["Mi cuenta", "Transacciones", "Solicitar retiro WC"]}
+        >
+          <div className="space-y-6">
                 {/* Imagen */}
                 <div className="flex justify-center">
                   <Image 
@@ -348,10 +345,8 @@ export function WithdrawalRequest() {
                   </Button>
                 </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+          </CustomModal>
+        )}
 
       {/* Notificación de éxito */}
       {showNotification && (

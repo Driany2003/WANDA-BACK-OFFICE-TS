@@ -4,6 +4,7 @@ import { GameCard } from "@/components/sections/game-card"
 import { ResultCard } from "@/components/sections/result-card"
 import { WinnerCard } from "@/components/sections/winner-card"
 import { Button } from "@/components/ui/button"
+import { GradientButton } from "@/components/ui/gradient-button"
 import { ANIMAL_GAMES, CONTEST_GAMES, RESULTS_DATA, WINNERS_DATA } from "@/lib/constants"
 import { PawPrint, Trophy, BarChart } from "lucide-react"
 import Link from "next/link"
@@ -21,14 +22,12 @@ export default function HomePage() {
 
 
   const handleConcursarClick = (gameId: string, gameTitle: string, gameType: "Animalitos" | "Concursos") => {
-    // Simulate selection of options for the modal
-    // In a real app, you'd get these from user interaction on the game card
     const gameDetails = [...ANIMAL_GAMES, ...CONTEST_GAMES].find((game) => game.id === gameId)?.details
     const dummyOptions: SelectedOption[] =
       gameDetails?.options.slice(0, 2).map((opt) => ({
         id: String(opt.id),
         image: opt.image,
-        number: opt.number || 0, // Ensure number exists
+        number: opt.number || 0,
       })) || []
 
     setModalData({
@@ -60,9 +59,9 @@ export default function HomePage() {
               <PawPrint className="w-6 h-6 text-purple-600" />
               Animalitos online
             </h2>
-            <Button variant="outline" className="bg-purple-600 hover:bg-purple-700 text-white">
+            <GradientButton>
               ¿Cómo concursar?
-            </Button>
+            </GradientButton>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {ANIMAL_GAMES.map((game) => (
@@ -109,9 +108,9 @@ export default function HomePage() {
             </div>
             <div className="flex justify-end mt-4">
               <Link href="/resultados?type=animalitos">
-                <Button variant="outline" className="bg-purple-600 hover:bg-purple-700 text-white">
+                <GradientButton>
                   Más resultados
-                </Button>
+                </GradientButton>
               </Link>
             </div>
           </div>
@@ -126,9 +125,9 @@ export default function HomePage() {
             </div>
             <div className="flex justify-end mt-4">
               <Link href="/resultados?type=concursos">
-                <Button variant="outline" className="bg-purple-600 hover:bg-purple-700 text-white">
+                <GradientButton>
                   Más resultados
-                </Button>
+                </GradientButton>
               </Link>
             </div>
           </div>

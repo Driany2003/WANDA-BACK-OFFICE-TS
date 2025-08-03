@@ -85,6 +85,9 @@ export interface PromotionCardData {
   id: number
   title: string
   image: string
+  status: "activas" | "vencidas" | "solicitadas"
+  createdAt: string
+  expiredAt: string
   details: PromotionDetails
 }
 
@@ -104,6 +107,13 @@ export interface HistoryEntry {
   date: string
   amount: number
   status: string
+}
+
+export interface PromotionTableData {
+  id: number
+  nombre: string
+  fechaCanje: string
+  estado: string
 }
 
 export interface ProfileData {

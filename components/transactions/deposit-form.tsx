@@ -8,6 +8,7 @@ import { NotificationToast } from "@/components/ui/notification-toast"
 import { DolarIcon, ImagenIcon, WarningIcon } from "@/components/icons/transaction-icons"
 import Image from "next/image"
 import { Upload, ChevronDown, ChevronUp } from "lucide-react"
+import { CustomModal } from "@/components/shared/custom-modal"
 
 export function DepositForm() {
   const [expandedMethod, setExpandedMethod] = useState<string | null>(null)
@@ -819,28 +820,13 @@ export function DepositForm() {
 
       {/* Modal de Confirmación */}
       {showConfirmationModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full">
-            {/* Header */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-xl font-bold text-black">Recarga</h2>
-                <button
-                  onClick={handleCancelRecarga}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </div>
-              <p className="text-sm text-[#3A05DF]">
-                Mi cuenta {'>'} Transacciones {'>'} Recargar WC
-              </p>
-            </div>
-
-            {/* Content */}
-            <div className="p-6 space-y-6">
+        <CustomModal
+          isOpen={showConfirmationModal}
+          onClose={handleCancelRecarga}
+          title="Recarga"
+          breadcrumbs={["Mi cuenta", "Transacciones", "Recargar WC"]}
+        >
+          <div className="p-6 space-y-6">
               {/* Título principal */}
               <div className="text-center">
                 <h3 className="text-[18px] font-medium text-black mb-2">
@@ -948,9 +934,8 @@ export function DepositForm() {
                 Recargar
               </GradientButton>
             </div>
-          </div>
-        </div>
-      )}
+          </CustomModal>
+        )}
 
       {/* Notification Toast */}
       <NotificationToast

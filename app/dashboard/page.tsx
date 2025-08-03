@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { GradientButton } from "@/components/ui/gradient-button"
 import { BarChart3 } from "lucide-react"
 import { DashboardWidgets } from "@/components/dashboard/dashboard-widgets"
 import { DASHBOARD_STATS } from "@/lib/constants"
@@ -25,7 +26,10 @@ export default function DashboardPage() {
             <span className="text-sm text-gray-600">Rango de fecha</span>
             <DateRangeSelect onSelectChange={handleDateRangeChange} />
           </div>
-          <Button className="bg-purple-600 hover:bg-purple-700 text-white">Generar reporte</Button>
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-gray-600">&nbsp;</span>
+            <GradientButton>Generar reporte</GradientButton>
+          </div>
         </div>
       </div>
 

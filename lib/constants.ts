@@ -12,6 +12,7 @@ import type {
   ProfileData,
   ResultCardData,
   Notification,
+  PromotionTableData,
 } from "@/types"
 
 export const SIDEBAR_ITEMS: SidebarItem[] = [
@@ -464,6 +465,9 @@ export const PROMOTIONS_DATA: PromotionCardData[] = [
     id: 1,
     title: "Promoción 2x1",
     image: "/placeholder.svg?height=200&width=300",
+    status: "activas",
+    createdAt: "01/12/2024",
+    expiredAt: "31/12/2024",
     details: {
       id: 1,
       title: "Promoción 2x1",
@@ -484,6 +488,9 @@ export const PROMOTIONS_DATA: PromotionCardData[] = [
     id: 2,
     title: "Promo fruits",
     image: "/placeholder.svg?height=200&width=300",
+    status: "vencidas",
+    createdAt: "01/11/2024",
+    expiredAt: "02/09/2024",
     details: {
       id: 2,
       title: "Promo fruits",
@@ -501,6 +508,9 @@ export const PROMOTIONS_DATA: PromotionCardData[] = [
     id: 3,
     title: "Carreras top",
     image: "/placeholder.svg?height=200&width=300",
+    status: "solicitadas",
+    createdAt: "10/12/2024",
+    expiredAt: "15/01/2025",
     details: {
       id: 3,
       title: "Carreras top",
@@ -514,6 +524,69 @@ export const PROMOTIONS_DATA: PromotionCardData[] = [
       termsLink: "#",
     },
   },
+  {
+    id: 4,
+    title: "Promoción especial",
+    image: "/placeholder.svg?height=200&width=300",
+    status: "activas",
+    createdAt: "15/12/2024",
+    expiredAt: "30/12/2024",
+    details: {
+      id: 4,
+      title: "Promoción especial",
+      image: "/placeholder.svg?height=200&width=300",
+      breadcrumbs: ["Mi cuenta", "Promociones", "Promoción especial"],
+      description: "¡Aprovecha esta oferta limitada por tiempo! Duplica tus ganancias en todos los juegos.",
+      howToParticipate: [
+        "Realiza una recarga de S/ 20.00 o más.",
+        "Juega cualquier juego de la plataforma.",
+        "Recibe un bono del 100% en tu primera victoria.",
+      ],
+      termsLink: "#",
+    },
+  },
+  {
+    id: 5,
+    title: "Promoción navideña",
+    image: "/placeholder.svg?height=200&width=300",
+    status: "vencidas",
+    createdAt: "01/12/2024",
+    expiredAt: "25/12/2024",
+    details: {
+      id: 5,
+      title: "Promoción navideña",
+      image: "/placeholder.svg?height=200&width=300",
+      breadcrumbs: ["Mi cuenta", "Promociones", "Promoción navideña"],
+      description: "¡Celebra la navidad con premios especiales! Participa y gana bonos navideños.",
+      howToParticipate: [
+        "Realiza una recarga durante diciembre.",
+        "Participa en los juegos navideños especiales.",
+        "Gana bonos exclusivos de navidad.",
+      ],
+      termsLink: "#",
+    },
+  },
+  {
+    id: 6,
+    title: "Promoción de verano",
+    image: "/placeholder.svg?height=200&width=300",
+    status: "solicitadas",
+    createdAt: "20/12/2024",
+    expiredAt: "28/02/2025",
+    details: {
+      id: 6,
+      title: "Promoción de verano",
+      image: "/placeholder.svg?height=200&width=300",
+      breadcrumbs: ["Mi cuenta", "Promociones", "Promoción de verano"],
+      description: "¡Disfruta del verano con premios refrescantes! Participa en nuestros juegos de temporada.",
+      howToParticipate: [
+        "Realiza una recarga durante el verano.",
+        "Participa en los juegos de temporada.",
+        "Gana premios especiales de verano.",
+      ],
+      termsLink: "#",
+    },
+  },
 ]
 
 export const HISTORY_TRANSACTIONS_DATA: HistoryEntry[] = [
@@ -522,16 +595,14 @@ export const HISTORY_TRANSACTIONS_DATA: HistoryEntry[] = [
   { id: 3, operation: "Recarga", date: "23/09/2024", amount: 50, status: "Completado" },
 ]
 
-export const HISTORY_CONTESTS_DATA: HistoryEntry[] = [
-  { id: 1, operation: "La gran ruleta", date: "25/09/2024", amount: 100, status: "Ganado" },
-  { id: 2, operation: "Animalitos", date: "24/09/2024", amount: 0, status: "Perdido" },
-  { id: 3, operation: "Carritos", date: "23/09/2024", amount: 50, status: "Ganado" },
+export const HISTORY_CONTESTS_DATA: ContestTableData[] = [
+  { id: 1, concurso: "Carritos", fecha: "25/09/2024", wcUsadas: 10, numOpciones: 2, estado: "En proceso", recompensa: 0 },
+  { id: 2, concurso: "Cartas", fecha: "24/09/2024", wcUsadas: 10, numOpciones: 1, estado: "Cerrado", recompensa: 0 },
 ]
 
-export const HISTORY_PROMOTIONS_DATA: HistoryEntry[] = [
-  { id: 1, operation: "Promoción 2x1", date: "20/09/2024", amount: 0, status: "Activada" },
-  { id: 2, operation: "Promo fruits", date: "18/09/2024", amount: 0, status: "Canjeada" },
-  { id: 3, operation: "Carreras top", date: "15/09/2024", amount: 0, status: "Expirada" },
+export const HISTORY_PROMOTIONS_DATA: PromotionTableData[] = [
+  { id: 1, nombre: "Promoción 2x1", fechaCanje: "25/09/2024", estado: "En proceso" },
+  { id: 2, nombre: "Carreras top", fechaCanje: "24/09/2024", estado: "Aprobado" },
 ]
 
 export const PROFILE_DATA: ProfileData = {

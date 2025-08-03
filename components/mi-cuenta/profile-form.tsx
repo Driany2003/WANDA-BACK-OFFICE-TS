@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -47,6 +47,44 @@ export function ProfileForm({ data, isEditing = false, onSave, onEdit }: Profile
       setBankAccounts(bankAccounts.filter(account => account.id !== id))
     }
   }
+
+  // Función para obtener solo las billeteras móviles válidas (con datos completos)
+  const getValidMobileWallets = () => {
+    return mobileWallets.filter(wallet => wallet.wallet.trim() !== '' && wallet.phone.trim() !== '')
+  }
+
+  // Función para obtener solo las cuentas bancarias válidas (con datos completos)
+  const getValidBankAccounts = () => {
+    return bankAccounts.filter(account => account.institution.trim() !== '' && account.account.trim() !== '')
+  }
+
+  // Función para limpiar entradas vacías automáticamente
+  const cleanEmptyEntries = () => {
+    // Limpiar billeteras móviles vacías
+    const validWallets = mobileWallets.filter(wallet => 
+      wallet.wallet.trim() !== '' && wallet.phone.trim() !== ''
+    )
+    if (validWallets.length === 0) {
+      validWallets.push({ id: Date.now(), wallet: '', phone: '' })
+    }
+    setMobileWallets(validWallets)
+
+    // Limpiar cuentas bancarias vacías
+    const validAccounts = bankAccounts.filter(account => 
+      account.institution.trim() !== '' && account.account.trim() !== ''
+    )
+    if (validAccounts.length === 0) {
+      validAccounts.push({ id: Date.now(), institution: '', account: '' })
+    }
+    setBankAccounts(validAccounts)
+  }
+
+  // Limpiar entradas vacías cuando se desactiva el modo de edición
+  useEffect(() => {
+    if (!isEditing) {
+      cleanEmptyEntries()
+    }
+  }, [isEditing])
 
   return (
     <div className="space-y-8">
@@ -198,12 +236,12 @@ export function ProfileForm({ data, isEditing = false, onSave, onEdit }: Profile
                 </SelectContent>
               </Select>
             </div>
-            {showPPE && (
+            {(!isEditing && showPPE) && (
               <div className="space-y-2">
                 <Label htmlFor="ppe" className="text-xs font-medium text-[#777777]">PPE</Label>
                 <Input 
                   id="ppe" 
-                  defaultValue="No"
+                  value="No"
                   className="w-[230px] h-[40px] rounded-lg border-gray-300 bg-gray-50 focus:border-purple-500 focus:ring-purple-500 focus:bg-white transition-colors shadow-[0_4px_12px_rgba(219,8,110,0.25)] text-[#777777] text-sm font-medium placeholder:text-[#BBBBBB] placeholder:text-sm placeholder:font-semibold"
                   disabled={true}
                   readOnly  
@@ -245,7 +283,12 @@ export function ProfileForm({ data, isEditing = false, onSave, onEdit }: Profile
                   </Select>
                   <Input
                     placeholder="Ingresa el número asociado"
-                    defaultValue={wallet.phone}
+                    value={wallet.phone}
+                    onChange={(e) => {
+                      const updatedWallets = [...mobileWallets]
+                      updatedWallets[index].phone = e.target.value
+                      setMobileWallets(updatedWallets)
+                    }}
                     className="w-[230px] h-[40px] rounded-lg border-gray-300 bg-gray-50 focus:border-purple-500 focus:ring-purple-500 focus:bg-white transition-colors shadow-[0_4px_12px_rgba(219,8,110,0.25)] text-[#777777] text-sm font-medium placeholder:text-[#BBBBBB] placeholder:text-sm placeholder:font-semibold"
                     disabled={!isEditing}
                   />
@@ -293,7 +336,12 @@ export function ProfileForm({ data, isEditing = false, onSave, onEdit }: Profile
                   </Select>
                   <Input 
                     placeholder="000 000 000 000 00"
-                    defaultValue={account.account}
+                    value={account.account}
+                    onChange={(e) => {
+                      const updatedAccounts = [...bankAccounts]
+                      updatedAccounts[index].account = e.target.value
+                      setBankAccounts(updatedAccounts)
+                    }}
                     className="w-[230px] h-[40px] rounded-lg border-gray-300 bg-gray-50 focus:border-purple-500 focus:ring-purple-500 focus:bg-white transition-colors shadow-[0_4px_12px_rgba(219,8,110,0.25)] text-[#777777] text-sm font-medium placeholder:text-[#BBBBBB] placeholder:text-sm placeholder:font-semibold"
                     disabled={!isEditing}
                   />
