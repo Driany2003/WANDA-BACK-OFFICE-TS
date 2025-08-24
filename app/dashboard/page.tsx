@@ -1,6 +1,5 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { BarChart3 } from "lucide-react"
 import { DashboardWidgets } from "@/components/dashboard/dashboard-widgets"
@@ -14,7 +13,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6 p-[50px]">
+    <div className="space-y-6 p-5 pt-10">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

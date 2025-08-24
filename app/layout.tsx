@@ -1,8 +1,8 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Lato } from "next/font/google"
-import { AuthProvider } from "@/hooks/useAuth"
-import { AuthLayout } from "@/components/layout/auth-layout"
+import { Toaster } from "@/components/ui/toaster"
+import { SidebarProvider } from "@/components/layout/sidebar-provider"
 import "./globals.css"
 
 const lato = Lato({ 
@@ -11,7 +11,7 @@ const lato = Lato({
 })
 
 export const metadata: Metadata = {
-  title: "Wanda - Concursos y Animalitos",
+  title: "Wanda BackOffice - Concursos y Animalitos",
   description: "Plataforma de concursos y juegos online con increíbles promociones",
   generator: 'v0.dev',
   icons: {
@@ -29,11 +29,10 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={lato.className}>
-        <AuthProvider>
-          <AuthLayout>
-            {children}
-          </AuthLayout>
-        </AuthProvider>
+        <SidebarProvider>
+          {children}
+        </SidebarProvider>
+        <Toaster />
       </body>
     </html>
   )

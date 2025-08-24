@@ -1,4 +1,18 @@
-import { Concurso, ConcursoBlanco, misConcursos, misConcursosBlanco, transacciones, transaccionesBlanco, dashboard, dashboardBlanco, miCuenta, miCuentaBlanco, CerrarSesion } from "@/components/icons/sidebar-icons"
+import { 
+  Dashboard, 
+  DashboardMorado, 
+  Transacciones, 
+  TransaccionesMorado, 
+  AdministracionMorado, 
+  Administracion,
+  configuraciones, 
+  ConfiguracionesMorado, 
+  Soporte, 
+  SoporteMorado, 
+  Tiktok, 
+  TiktokMorado, 
+  CerrarSesion 
+} from "@/components/icons/sidebar-icons"
 import type {
   SidebarItem,
   PaymentMethod,
@@ -16,11 +30,12 @@ import type {
 } from "@/types"
 
 export const SIDEBAR_ITEMS: SidebarItem[] = [
-  { id: "concursos", label: "Concursos", icon: Concurso, iconBlanco: ConcursoBlanco, href: "/concursos" },
-  { id: "mis-concursos", label: "Mis concursos", icon: misConcursos, iconBlanco: misConcursosBlanco, href: "/mis-concursos" },
-  { id: "transacciones", label: "Transacciones", icon: transacciones, iconBlanco: transaccionesBlanco, href: "/transacciones" },
-  { id: "dashboard", label: "Dashboard", icon: dashboard, iconBlanco: dashboardBlanco, href: "/dashboard" },
-  { id: "mi-cuenta", label: "Mi cuenta", icon: miCuenta, iconBlanco: miCuentaBlanco, href: "/mi-cuenta" },
+  { id: "dashboard", label: "Dashboard", icon: Dashboard, iconBlanco: DashboardMorado, href: "/dashboard" },
+  { id: "transacciones", label: "Transacciones", icon: Transacciones, iconBlanco: TransaccionesMorado, href: "/transacciones" },
+  { id: "administracion", label: "Administración", icon: Administracion, iconBlanco: AdministracionMorado, href: "/administracion" },
+  { id: "configuraciones", label: "Configuraciones", icon: configuraciones, iconBlanco: ConfiguracionesMorado, href: "/configuraciones" },
+  { id: "soporte", label: "Soporte", icon: Soporte, iconBlanco: SoporteMorado, href: "/soporte" },
+  { id: "tiktok", label: "TikTok", icon: Tiktok, iconBlanco: TiktokMorado, href: "/tiktok" },
 ]
 
 export const PAYMENT_METHODS: PaymentMethod[] = [

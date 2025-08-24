@@ -1,0 +1,1 @@
+export { Parametros } from "./parametros"

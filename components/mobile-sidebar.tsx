@@ -15,8 +15,16 @@ export function MobileSidebar() {
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="w-64 bg-gradient-to-b from-gradient-start to-gradient-end text-white border-none"
+        className="w-64 text-white border-none p-0"
+        style={{ backgroundColor: '#8969EC' }}
       >
+        <div className="flex items-center justify-center h-20 mb-6 pt-4">
+          <div className="flex items-center gap-2 font-semibold">
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+              <span className="text-lg font-bold text-purple-600">WC</span>
+            </div>
+          </div>
+        </div>
         <SidebarNav />
       </SheetContent>
     </Sheet>
