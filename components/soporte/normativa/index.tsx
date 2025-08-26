@@ -1,0 +1,2 @@
+export { Normativa } from './normativa'
+

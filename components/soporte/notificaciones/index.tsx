@@ -1,0 +1,2 @@
+export { Notificaciones } from './notificaciones'
+

@@ -1,0 +1,5 @@
+export { Notificaciones } from './notificaciones'
+export { PreguntasFrecuentes } from './preguntas-frecuentes'
+export { PaginasEstaticas } from './paginas-estaticas'
+export { Normativa } from './normativa'
+export { Reclamos } from './reclamos'
