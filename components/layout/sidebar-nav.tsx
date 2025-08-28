@@ -1,12 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { SIDEBAR_ITEMS } from "@/lib/constants"
 import { CerrarSesion } from "@/components/icons/sidebar-icons"
 
 export function SidebarNav() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = () => {
+    // Aquí podrías agregar lógica para limpiar el estado de autenticación
+    console.log("Cerrando sesión...")
+    router.push('/login')
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -47,7 +54,8 @@ export function SidebarNav() {
       {/* Botón Cerrar Sesión */}
       <div className="mt-8">
         <button
-          className="w-full flex items-center justify-start gap-3 px-3 py-3 transition-colors hover:bg-white/10"
+          onClick={handleLogout}
+          className="w-full flex items-center justify-start gap-3 px-3 py-3 transition-colors hover:bg-white/10 cursor-pointer"
           style={{ backgroundColor: '#EBE6FC' }}
         >
           <div className="flex-shrink-0">

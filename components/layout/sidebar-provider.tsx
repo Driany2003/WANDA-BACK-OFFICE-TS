@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, memo } from "react"
 import { usePathname } from "next/navigation"
 import { Header } from "./header"
 import { Sidebar } from "./sidebar"
@@ -9,15 +9,15 @@ interface SidebarProviderProps {
   children: React.ReactNode
 }
 
-export function SidebarProvider({ children }: SidebarProviderProps) {
+export const SidebarProvider = memo(function SidebarProvider({ children }: SidebarProviderProps) {
   const isMobile = useIsMobile()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const pathname = usePathname()
 
-  const toggleSidebar = () => {
+  const toggleSidebar = useCallback(() => {
     console.log("Toggle sidebar clicked, current state:", isSidebarOpen, "isMobile:", isMobile)
-    setIsSidebarOpen(!isSidebarOpen)
-  }
+    setIsSidebarOpen(prev => !prev)
+  }, [isSidebarOpen, isMobile])
 
   // Cerrar sidebar automáticamente al cambiar de ruta en móvil
   useEffect(() => {
@@ -26,9 +26,11 @@ export function SidebarProvider({ children }: SidebarProviderProps) {
     }
   }, [pathname, isMobile, isSidebarOpen])
 
-  // Debug logs
+  // Debug logs solo en desarrollo
   useEffect(() => {
-    console.log("SidebarProvider - isMobile:", isMobile, "isSidebarOpen:", isSidebarOpen)
+    if (process.env.NODE_ENV === 'development') {
+      console.log("SidebarProvider - isMobile:", isMobile, "isSidebarOpen:", isSidebarOpen)
+    }
   }, [isMobile, isSidebarOpen])
 
   return (
@@ -50,4 +52,4 @@ export function SidebarProvider({ children }: SidebarProviderProps) {
       </div>
     </div>
   )
-}
+})

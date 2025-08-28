@@ -110,7 +110,7 @@ export function NovedadesActivas() {
   return (
     <div className="space-y-6">
       {/* Acciones */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 pl-6">
         <Checkbox
           checked={selectAll}
           onCheckedChange={handleSelectAll}

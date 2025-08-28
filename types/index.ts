@@ -33,6 +33,16 @@ export interface DashboardStats {
     carritos: number
     cartas: number
   }
+  ingresos: {
+    total: number
+    permanentes: number
+    temporales: number
+  }
+  salidas: {
+    total: number
+    aprobadas: number
+    enProceso: number
+  }
   recompensas: Array<{ day: string; value: number }>
   perdidas: Array<{ day: string; value: number }>
 }

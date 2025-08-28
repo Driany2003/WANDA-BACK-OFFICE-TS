@@ -3,9 +3,10 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, Plus } from "lucide-react"
 import { WCIcon, LapizIcon, TachoIcon } from "@/components/icons/adminitracion-icon"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+
 
 interface Concurso {
   id: string
@@ -16,9 +17,16 @@ interface Concurso {
   estado: string
 }
 
-export function Concursos() {
+interface ConcursosProps {
+  onEditarConcurso: (concurso: Concurso) => void
+  onEliminarConcurso: (concurso: Concurso) => void
+}
+
+export function Concursos({ onEditarConcurso, onEliminarConcurso }: ConcursosProps) {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [selectAll, setSelectAll] = useState(false)
+  
+
 
   // Datos de ejemplo para concursos
   const CONCURSOS_DATA: Concurso[] = [
@@ -178,11 +186,20 @@ export function Concursos() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-54">
-                        <DropdownMenuItem className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium">
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            console.log("Editando concurso:", item)
+                            onEditarConcurso(item)
+                          }}
+                          className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
+                        >
                           <LapizIcon />
                           Editar concurso
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium">
+                        <DropdownMenuItem 
+                          onClick={() => onEliminarConcurso(item)}
+                          className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
+                        >
                           <TachoIcon />
                           Eliminar concurso
                         </DropdownMenuItem>
@@ -195,6 +212,8 @@ export function Concursos() {
           </table>
         </div>
       </div>
+
+
     </div>
   )
 }

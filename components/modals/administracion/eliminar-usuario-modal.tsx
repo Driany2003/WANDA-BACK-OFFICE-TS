@@ -86,7 +86,7 @@ export function EliminarUsuarioModal({ isOpen, onClose, usuario, onConfirm }: El
               {/* Imagen de eliminación */}
               <div className="mb-6">
                 <img 
-                  src="/administracion_eliminar.png" 
+                  src="/eliminar.png" 
                   alt="Eliminar usuario" 
                   className="w-32 h-32 object-contain"
                 />

@@ -5,6 +5,8 @@ import { BarChart3 } from "lucide-react"
 import { DashboardWidgets } from "@/components/dashboard/dashboard-widgets"
 import { DASHBOARD_STATS } from "@/lib/constants"
 import { DateRangeSelect } from "@/components/shared/date-range-select"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 
 export default function DashboardPage() {
   const handleDateRangeChange = (value: string) => {
@@ -18,6 +20,9 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-lg text-gray-600 mt-2">
+            {format(new Date(), "EEEE dd/MM/yyyy", { locale: es })}
+          </p>
         </div>
 
         <div className="flex items-center gap-4">

@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { RefreshCw, MoreVertical } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { LapizIcon, TachoIcon } from "@/components/icons/adminitracion-icon"
+import { EditarSuscriptorModal, EliminarSuscriptorPermanenteModal } from "@/components/modals/administracion"
 
 interface SuscriptorPermanente {
   id: string
@@ -22,6 +23,11 @@ interface SuscriptoresPermanentesProps {
 export function SuscriptoresPermanentes({ onEditSuscriptor }: SuscriptoresPermanentesProps) {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [selectAll, setSelectAll] = useState(false)
+  
+  // Estados para los modales
+  const [isEditarModalOpen, setIsEditarModalOpen] = useState(false)
+  const [isEliminarModalOpen, setIsEliminarModalOpen] = useState(false)
+  const [suscriptorSeleccionado, setSuscriptorSeleccionado] = useState<any>(null)
 
   // Datos de ejemplo para suscriptores permanentes
   const SUSCRIPTORES_PERMANENTES_DATA: SuscriptorPermanente[] = [
@@ -69,13 +75,27 @@ export function SuscriptoresPermanentes({ onEditSuscriptor }: SuscriptoresPerman
   const handleEditSuscriptor = (id: string) => {
     const suscriptor = SUSCRIPTORES_PERMANENTES_DATA.find(item => item.id === id)
     if (suscriptor) {
-      // Llamar a la función del componente padre
-      onEditSuscriptor(suscriptor)
+      setSuscriptorSeleccionado(suscriptor)
+      setIsEditarModalOpen(true)
     }
   }
 
   const handleDeleteSuscriptor = (id: string) => {
+    const suscriptor = SUSCRIPTORES_PERMANENTES_DATA.find(item => item.id === id)
+    if (suscriptor) {
+      setSuscriptorSeleccionado(suscriptor)
+      setIsEliminarModalOpen(true)
+    }
+  }
+
+  const handleEditarSuscriptor = (data: any) => {
+    console.log("Editando suscriptor:", data)
+    // Aquí iría la lógica para editar el suscriptor
+  }
+
+  const handleConfirmarEliminar = (id: string) => {
     console.log("Eliminando suscriptor:", id)
+    // Aquí iría la lógica para eliminar el suscriptor
   }
 
   return (
@@ -200,6 +220,24 @@ export function SuscriptoresPermanentes({ onEditSuscriptor }: SuscriptoresPerman
           </table>
         </div>
       </div>
+
+      {/* Modales */}
+      {suscriptorSeleccionado && (
+        <>
+          <EditarSuscriptorModal
+            isOpen={isEditarModalOpen}
+            onClose={() => setIsEditarModalOpen(false)}
+            suscriptor={suscriptorSeleccionado}
+            onSave={handleEditarSuscriptor}
+          />
+          <EliminarSuscriptorPermanenteModal
+            isOpen={isEliminarModalOpen}
+            onClose={() => setIsEliminarModalOpen(false)}
+            suscriptor={suscriptorSeleccionado}
+            onConfirm={handleConfirmarEliminar}
+          />
+        </>
+      )}
     </div>
   )
 }

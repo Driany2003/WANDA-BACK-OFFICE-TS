@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { X, Upload } from "lucide-react"
-import { FechasIcon, HoraIcon } from "@/components/icons/configuraciones-icons"
+import { FechasIcon, HoraIcon, AlertIcon } from "@/components/icons/configuraciones-icons"
 import { Button } from "@/components/ui/button"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
@@ -294,7 +294,7 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadData }: Edi
                   )}
                   {/* Texto de validación */}
                   <div className="flex items-center gap-2 mt-2 text-orange-600 text-xs">
-                    <span>⚠</span>
+                    <AlertIcon />
                     <span>Puedes cargar un máximo de cuatro (4) imágenes / JPG, PNG / Máx 20 MB</span>
                   </div>
                 </div>

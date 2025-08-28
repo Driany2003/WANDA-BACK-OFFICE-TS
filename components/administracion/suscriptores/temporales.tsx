@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { RefreshCw, MoreVertical } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { LapizIcon, TachoIcon } from "@/components/icons/adminitracion-icon"
-import { EditarSuscriptorModal, EliminarSuscriptorModal } from "@/components/modals/administracion"
+import { EditarSuscriptorModal, EliminarSuscriptorTemporalModal } from "@/components/modals/administracion"
 
 interface SuscriptorTemporal {
   id: string
@@ -237,7 +237,7 @@ export function SuscriptoresTemporales({ onEditSuscriptor }: SuscriptoresTempora
             suscriptor={suscriptorSeleccionado}
             onSave={handleEditarSuscriptor}
           />
-          <EliminarSuscriptorModal
+          <EliminarSuscriptorTemporalModal
             isOpen={isEliminarModalOpen}
             onClose={() => setIsEliminarModalOpen(false)}
             suscriptor={suscriptorSeleccionado}

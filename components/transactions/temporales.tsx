@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
-import { MoreVertical, RefreshCw, ChevronDown, Edit, Trash2 } from "lucide-react"
-import { TachoIcon } from "@/components/icons/transaction-icons"
-import { WcIcon } from "@/components/icons/transaction-icons"
+import { RefreshCw, ChevronDown } from "lucide-react"
+import { TachoIcon, LapizIcon, WcIcon } from "@/components/icons/transaction-icons"
+import { EliminarIngresoTemporalModal } from "@/components/modals/transactions"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import {
   DropdownMenu,
@@ -58,6 +58,8 @@ export function Temporales({ onOpenAddModal, onEditIncome, incomeSaved }: Tempor
   const [selectAll, setSelectAll] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
+  const [isEliminarModalOpen, setIsEliminarModalOpen] = useState(false)
+  const [ingresoSeleccionado, setIngresoSeleccionado] = useState<any>(null)
 
   // Detectar cuando se guarde un ingreso y mostrar el toast
   useEffect(() => {
@@ -141,9 +143,16 @@ export function Temporales({ onOpenAddModal, onEditIncome, incomeSaved }: Tempor
     return dateString
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (ingreso: any) => {
+    setIngresoSeleccionado(ingreso)
+    setIsEliminarModalOpen(true)
+  }
+
+  const handleConfirmarEliminar = (id: string) => {
     console.log("Eliminando ingreso:", id)
     // Aquí iría la lógica para eliminar
+    setIsEliminarModalOpen(false)
+    setIngresoSeleccionado(null)
   }
 
   return (
@@ -250,27 +259,25 @@ export function Temporales({ onOpenAddModal, onEditIncome, incomeSaved }: Tempor
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-[#1C1C1C] hover:text-[#6137E5]"
-                        >
-                          <MoreVertical className="w-4 h-4" />
+                        <Button variant="ghost" size="sm">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-40">
+                      <DropdownMenuContent className="w-54">
                         <DropdownMenuItem 
                           onClick={() => handleEdit(income)}
-                          className="flex items-center gap-2 text-gray-700 hover:text-gray-900 cursor-pointer"
+                          className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
                         >
-                          <Edit className="w-4 h-4 text-gray-500" />
+                          <LapizIcon />
                           Editar ingreso
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => handleDelete(income.id)}
-                          className="flex items-center gap-2 text-gray-700 hover:text-red-600 cursor-pointer"
+                          onClick={() => handleDelete(income)}
+                          className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
                         >
-                          <Trash2 className="w-4 h-4 text-gray-500" />
+                          <TachoIcon />
                           Eliminar ingreso
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -291,6 +298,19 @@ export function Temporales({ onOpenAddModal, onEditIncome, incomeSaved }: Tempor
           message={toastMessage.message}
           onClose={() => setShowToast(false)}
           isVisible={showToast}
+        />
+      )}
+
+      {/* Modal de eliminar ingreso temporal */}
+      {ingresoSeleccionado && (
+        <EliminarIngresoTemporalModal
+          isOpen={isEliminarModalOpen}
+          onClose={() => {
+            setIsEliminarModalOpen(false)
+            setIngresoSeleccionado(null)
+          }}
+          ingreso={ingresoSeleccionado}
+          onConfirm={handleConfirmarEliminar}
         />
       )}
     </div>

@@ -8,10 +8,19 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    formats: ['image/webp', 'image/avif'],
   },
-  // Configuraciones para mejorar el hot reload
+  // Configuraciones para mejorar el rendimiento
   experimental: {
     optimizePackageImports: ['lucide-react'],
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
   },
   // Configuración para desarrollo
   webpack: (config, { dev, isServer }) => {
@@ -24,11 +33,26 @@ const nextConfig = {
     // Mejorar hot reload en desarrollo
     if (dev && !isServer) {
       config.watchOptions = {
-        poll: 500,
-        aggregateTimeout: 200,
-        ignored: ['**/node_modules', '**/.git', '**/.next'],
+        poll: 1000,
+        aggregateTimeout: 300,
+        ignored: ['**/node_modules', '**/.git', '**/.next', '**/dist'],
       };
     }
+
+    // Optimizaciones para mejorar el rendimiento
+    config.optimization = {
+      ...config.optimization,
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
+      },
+    };
 
     return config;
   },
@@ -38,9 +62,11 @@ const nextConfig = {
   },
   // Configuración para mejorar el hot reload
   onDemandEntries: {
-    maxInactiveAge: 25 * 1000,
-    pagesBufferLength: 2,
+    maxInactiveAge: 30 * 1000,
+    pagesBufferLength: 3,
   },
+  // Configuración para mejorar el rendimiento de las páginas
+  swcMinify: true,
 }
 
 export default nextConfig

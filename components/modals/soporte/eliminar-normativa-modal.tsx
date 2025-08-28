@@ -1,8 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { X } from 'lucide-react'
 import { GradientButton } from '@/components/ui/gradient-button'
 import { GradientOutlineButton } from '@/components/ui/gradient-outline-button'
+import { AlertIcon } from "@/components/icons/soporte-icons"
+import { NotificationToast } from "@/components/ui/notification-toast"
 import { Normativa } from '@/types/soporte'
 
 interface EliminarNormativaModalProps {
@@ -18,11 +21,34 @@ export function EliminarNormativaModal({
   normativa,
   onConfirm
 }: EliminarNormativaModalProps) {
+  // Estados para el toast
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
+  const [toastType, setToastType] = useState<"success" | "error">("success")
+
   if (!isOpen || !normativa) return null
 
   const handleConfirm = () => {
     onConfirm(normativa)
-    onClose()
+    
+    // Mostrar toast de éxito
+    showToastMessage("success", "Normativa eliminada", "La normativa ha sido eliminada exitosamente")
+    
+    // Cerrar el modal después de un breve delay
+    setTimeout(() => {
+      onClose()
+    }, 1500)
+  }
+
+  const showToastMessage = (type: "success" | "error", title: string, message: string) => {
+    setToastType(type)
+    setToastMessage({ title, message })
+    setShowToast(true)
+    
+    // Ocultar el toast después de 5 segundos
+    setTimeout(() => {
+      setShowToast(false)
+    }, 5000)
   }
 
   return (
@@ -75,7 +101,18 @@ export function EliminarNormativaModal({
                 {normativa.nombre}
               </p>
               <p className="text-[14px] text-gray-600">
-                Esta acción no se puede deshacer.
+                ¿Estás seguro de realizar dicha acción?
+              </p>
+            </div>
+
+            {/* Línea divisoria */}
+            <div className="w-full border-t border-gray-200 mb-4"></div>
+
+            {/* Mensaje de advertencia */}
+            <div className="flex items-center gap-2 text-red-500">
+              <AlertIcon />
+              <p className="text-[14px] text-red-500">
+                Se eliminará toda la información registrada de ésta normativa
               </p>
             </div>
           </div>
@@ -90,6 +127,7 @@ export function EliminarNormativaModal({
             Cancelar
           </GradientOutlineButton>
           <GradientButton
+            type="button"
             onClick={handleConfirm}
             className="w-[138px] h-[40px]"
           >
@@ -97,6 +135,17 @@ export function EliminarNormativaModal({
           </GradientButton>
         </div>
       </div>
+
+      {/* Toast notification */}
+      {showToast && (
+        <NotificationToast
+          type={toastType}
+          title={toastMessage.title}
+          message={toastMessage.message}
+          onClose={() => setShowToast(false)}
+          isVisible={showToast}
+        />
+      )}
     </div>
   )
 }

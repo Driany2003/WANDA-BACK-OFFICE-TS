@@ -23,6 +23,7 @@ interface Sponsor {
 
 export function Sponsors() {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
+  const [selectAll, setSelectAll] = useState(false)
   
   // Estados para los modales
   const [isEditarModalOpen, setIsEditarModalOpen] = useState(false)
@@ -75,6 +76,7 @@ export function Sponsors() {
     } else {
       setSelectedItems([])
     }
+    setSelectAll(checked)
   }
 
   const handleSelectItem = (id: string, checked: boolean) => {
@@ -117,7 +119,12 @@ export function Sponsors() {
   return (
     <div className="space-y-6">
       {/* Acciones */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 pl-6">
+        <Checkbox
+          checked={selectAll}
+          onCheckedChange={handleSelectAll}
+          className="data-[state=checked]:bg-[#777777] data-[state=checked]:border-[#777777]"
+        />
         <button
           onClick={handleRefresh}
           className="text-gray-600 hover:text-gray-800 p-2 rounded-md hover:bg-gray-100"
@@ -125,6 +132,13 @@ export function Sponsors() {
         >
           <RefreshCw className="h-5 w-5" />
         </button>
+        {selectedItems.length > 0 && (
+          <button
+            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
+          >
+            Eliminar seleccionados ({selectedItems.length})
+          </button>
+        )}
       </div>
 
       {/* Lista de sponsors */}
@@ -155,7 +169,7 @@ export function Sponsors() {
                         <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-48 sm:w-54">
+                    <DropdownMenuContent className="w-48 sm:w-54" align="end">
                       <DropdownMenuItem 
                         className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-xs sm:text-sm font-medium"
                         onClick={() => handleEditarSponsor(item)}

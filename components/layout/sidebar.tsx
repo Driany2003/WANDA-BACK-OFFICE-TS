@@ -6,12 +6,13 @@ import Image from "next/image"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { memo } from "react"
 
 interface SidebarProps {
   onClose?: () => void
 }
 
-export function Sidebar({ onClose }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname()
   const isMobile = useIsMobile()
 
@@ -49,6 +50,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               width={200} 
               height={142} 
               className="drop-shadow-lg"
+              priority
             />
             <span className="sr-only">Gaming Platform</span>
           </Link>
@@ -70,4 +72,4 @@ export function Sidebar({ onClose }: SidebarProps) {
       </aside>
     </>
   )
-}
+})

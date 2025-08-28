@@ -12,7 +12,7 @@ export function DateRangeSelect({ onSelectChange, selectedValue }: DateRangeSele
   const [selectedDates, setSelectedDates] = useState<{ startDate?: Date; endDate?: Date }>({})
 
   const handleValueChange = (value: string) => {
-    if (value === "ultimos-3-meses") {
+    if (value === "una-fecha-especifica") {
       setIsModalOpen(true)
     } else {
       setSelectedDates({})
@@ -22,7 +22,7 @@ export function DateRangeSelect({ onSelectChange, selectedValue }: DateRangeSele
 
   const handleSelectDates = (startDate: Date, endDate: Date) => {
     setSelectedDates({ startDate, endDate })
-    onSelectChange("ultimos-3-meses")
+    onSelectChange("una-fecha-especifica")
     setIsModalOpen(false)
   }
 
@@ -37,12 +37,12 @@ export function DateRangeSelect({ onSelectChange, selectedValue }: DateRangeSele
     switch (selectedValue) {
       case "hoy":
         return "Hoy"
-      case "ultima-semana":
-        return "Última semana"
-      case "ultimo-mes":
-        return "Último mes"
-      case "ultimos-3-meses":
-        return "Últimos 3 meses"
+      case "la-semana-pasada":
+        return "La semana pasada"
+      case "el-mes-pasado":
+        return "El mes pasado"
+      case "una-fecha-especifica":
+        return "Una fecha específica"
       default:
         return "Selecciona una opción"
     }
@@ -50,7 +50,7 @@ export function DateRangeSelect({ onSelectChange, selectedValue }: DateRangeSele
 
   return (
     <>
-      <Select onValueChange={handleValueChange} value={selectedDates.startDate && selectedDates.endDate ? "ultimos-3-meses" : selectedValue}>
+      <Select onValueChange={handleValueChange} value={selectedDates.startDate && selectedDates.endDate ? "una-fecha-especifica" : selectedValue}>
         <SelectTrigger className="w-full h-full gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" style={{
           boxShadow: '0 2px 8px rgba(219, 8, 110, 0.15)'
         }}>
@@ -60,9 +60,9 @@ export function DateRangeSelect({ onSelectChange, selectedValue }: DateRangeSele
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="hoy">Hoy</SelectItem>
-          <SelectItem value="ultima-semana">Última semana</SelectItem>
-          <SelectItem value="ultimo-mes">Último mes</SelectItem>
-          <SelectItem value="ultimos-3-meses">Últimos 3 meses</SelectItem>
+          <SelectItem value="la-semana-pasada">La semana pasada</SelectItem>
+          <SelectItem value="el-mes-pasado">El mes pasado</SelectItem>
+          <SelectItem value="una-fecha-especifica">Una fecha específica</SelectItem>
         </SelectContent>
       </Select>
 

@@ -2,30 +2,53 @@
 
 import { useState } from "react"
 import { X } from "lucide-react"
+import { AlertIcon } from "@/components/icons/transaction-icons"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
-import { AlertIcon } from "@/components/icons/adminitracion-icon"
+import { NotificationToast } from "@/components/ui/notification-toast"
 
-interface EliminarSuscriptorModalProps {
+interface EliminarIngresoTemporalModalProps {
   isOpen: boolean
   onClose: () => void
-  suscriptor: {
-    id: string
-    nombre: string
-    usuarioTiktok: string
-    celular: string
-    estado: string
-  }
+  ingreso: any
   onConfirm: (id: string) => void
 }
 
-export function EliminarSuscriptorModal({ isOpen, onClose, suscriptor, onConfirm }: EliminarSuscriptorModalProps) {
-  const handleConfirm = () => {
-    onConfirm(suscriptor.id)
-    onClose()
-  }
+export function EliminarIngresoTemporalModal({ 
+  isOpen, 
+  onClose, 
+  ingreso, 
+  onConfirm 
+}: EliminarIngresoTemporalModalProps) {
+  // Estados para el toast
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
+  const [toastType, setToastType] = useState<"success" | "error">("success")
 
   if (!isOpen) return null
+
+  const handleConfirm = () => {
+    onConfirm(ingreso.id)
+    
+    // Mostrar toast de éxito
+    showToastMessage("success", "Ingreso eliminado", "El ingreso temporal ha sido eliminado exitosamente")
+    
+    // Cerrar el modal después de un breve delay
+    setTimeout(() => {
+      onClose()
+    }, 1500)
+  }
+
+  const showToastMessage = (type: "success" | "error", title: string, message: string) => {
+    setToastType(type)
+    setToastMessage({ title, message })
+    setShowToast(true)
+    
+    // Ocultar el toast después de 5 segundos
+    setTimeout(() => {
+      setShowToast(false)
+    }, 5000)
+  }
 
   return (
     <>
@@ -39,13 +62,13 @@ export function EliminarSuscriptorModal({ isOpen, onClose, suscriptor, onConfirm
             }}
           >
             <div className="flex-1">
-              <h2 className="text-[24px] font-medium text-[#1C1C1C] mb-2">Eliminar suscriptor</h2>
+              <h2 className="text-[24px] font-medium text-[#1C1C1C] mb-2">Eliminar ingreso temporal</h2>
               <div className="text-[12px] text-gray-600 mt-4">
-                <span className="text-[#9C82EF]">Administración</span> &gt;{" "}
-                <span className="text-[#9C82EF]">Suscriptores</span> &gt;{" "}
+                <span className="text-[#9C82EF]">Transacciones</span> &gt;{" "}
+                <span className="text-[#9C82EF]">Ingresos temporales</span> &gt;{" "}
                 <span 
                   className="text-[#3A05DF] font-medium px-1 py-1 rounded">
-                  Eliminar suscriptor
+                  Eliminar ingreso
                 </span>
               </div>
             </div>
@@ -63,8 +86,8 @@ export function EliminarSuscriptorModal({ isOpen, onClose, suscriptor, onConfirm
               {/* Imagen de eliminación */}
               <div className="mb-6">
                 <img 
-                  src="/administracion_eliminar.png" 
-                  alt="Eliminar suscriptor" 
+                  src="/eliminar.png" 
+                  alt="Eliminar ingreso" 
                   className="w-32 h-32 object-contain"
                 />
               </div>
@@ -72,10 +95,10 @@ export function EliminarSuscriptorModal({ isOpen, onClose, suscriptor, onConfirm
               {/* Texto de confirmación */}
               <div className="space-y-3 mb-6">
                 <p className="text-[14px] text-gray-600">
-                  Estás por eliminar al siguiente suscriptor:
+                  Estás por eliminar el siguiente ingreso temporal:
                 </p>
                 <p className="text-[18px] font-bold text-[#1C1C1C]">
-                  {suscriptor.nombre}
+                  {ingreso?.nombre}
                 </p>
                 <p className="text-[14px] text-gray-600">
                   ¿Estás seguro de realizar dicha acción?
@@ -89,7 +112,7 @@ export function EliminarSuscriptorModal({ isOpen, onClose, suscriptor, onConfirm
               <div className="flex items-center gap-2 text-red-500">
                 <AlertIcon />
                 <p className="text-[14px] text-red-500">
-                  Se eliminará toda la información registrada de éste suscriptor
+                  Se eliminará toda la información registrada de éste ingreso
                 </p>
               </div>
             </div>
@@ -113,6 +136,17 @@ export function EliminarSuscriptorModal({ isOpen, onClose, suscriptor, onConfirm
           </div>
         </div>
       </div>
+
+      {/* Toast notification */}
+      {showToast && (
+        <NotificationToast
+          type={toastType}
+          title={toastMessage.title}
+          message={toastMessage.message}
+          onClose={() => setShowToast(false)}
+          isVisible={showToast}
+        />
+      )}
     </>
   )
 }

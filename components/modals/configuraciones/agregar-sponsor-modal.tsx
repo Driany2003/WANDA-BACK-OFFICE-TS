@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { FechasIcon, HoraIcon, WarningIcon } from "@/components/icons/configuraciones-icons"
+import { FechasIcon, HoraIcon, AlertIcon } from "@/components/icons/configuraciones-icons"
 
 interface AgregarSponsorModalProps {
   isOpen: boolean
@@ -280,7 +280,7 @@ export function AgregarSponsorModal({ isOpen, onClose, onSave }: AgregarSponsorM
                   
                   {/* Información de validación */}
                   <div className="flex items-center gap-2 text-red-500 text-sm mt-2">
-                    <WarningIcon />
+                    <AlertIcon />
                     <span>Puedes cargar un máximo de cuatro (4) imágenes / JPG, PNG / Máx 40 MB</span>
                   </div>
                 </div>

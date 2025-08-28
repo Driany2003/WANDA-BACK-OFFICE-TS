@@ -8,6 +8,7 @@ import { GradientButton } from '@/components/ui/gradient-button'
 import { GradientOutlineButton } from '@/components/ui/gradient-outline-button'
 import { Normativa } from '@/types/soporte'
 import { CargarIcon } from '@/components/icons'
+import { AlertIcon } from '@/components/icons/soporte-icons'
 
 interface EditarNormativaModalProps {
   isOpen: boolean
@@ -187,7 +188,7 @@ export function EditarNormativaModal({
                   </div>
                   {/* Información de archivo */}
                   <div className="flex items-center gap-2 text-sm text-[#FF4444] mt-2">
-                    <span>⚠️</span>
+                    <AlertIcon />
                     <span>Puedes cargar un archivo / JPG, PNG / Máx 40 MB</span>
                   </div>
                 </div>

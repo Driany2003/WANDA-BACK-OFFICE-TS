@@ -74,6 +74,16 @@ export const DASHBOARD_STATS: DashboardStats = {
     carritos: 75,
     cartas: 25,
   },
+  ingresos: {
+    total: 100,
+    permanentes: 75,
+    temporales: 25,
+  },
+  salidas: {
+    total: 100,
+    aprobadas: 60,
+    enProceso: 40,
+  },
   recompensas: [
     { day: "Lun", value: 15 },
     { day: "Ma", value: 25 },

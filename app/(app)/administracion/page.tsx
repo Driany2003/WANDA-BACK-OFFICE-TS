@@ -13,7 +13,7 @@ import { Usuarios } from "@/components/administracion/usuarios"
 import { SuscriptoresPermanentes } from "@/components/administracion/suscriptores/permanentes"
 import { SuscriptoresTemporales } from "@/components/administracion/suscriptores/temporales"
 import { Concursos } from "@/components/administracion/concursos"
-import { AgregarUsuarioModal } from "@/components/modals/administracion"
+import { AgregarUsuarioModal, AgregarConcursoModal, EditarConcursoModal, EliminarConcursoModal } from "@/components/modals/administracion"
 import { EditarSuscriptorPermanente } from "@/components/administracion/suscriptores/editar-suscriptor-permanente"
 
 export default function AdministracionPage() {
@@ -22,6 +22,12 @@ export default function AdministracionPage() {
   
   // Estado para el modal de agregar usuario
   const [isAgregarModalOpen, setIsAgregarModalOpen] = useState(false)
+  
+  // Estados para los modales de concursos
+  const [isAgregarConcursoModalOpen, setIsAgregarConcursoModalOpen] = useState(false)
+  const [isEditarConcursoModalOpen, setIsEditarConcursoModalOpen] = useState(false)
+  const [isEliminarConcursoModalOpen, setIsEliminarConcursoModalOpen] = useState(false)
+  const [concursoSeleccionado, setConcursoSeleccionado] = useState<any>(null)
   
   // Estados para la vista de edición de suscriptor
   const [showEditView, setShowEditView] = useState(false)
@@ -32,6 +38,25 @@ export default function AdministracionPage() {
     console.log("Agregando usuario:", data)
     // Aquí iría la lógica para agregar el usuario
     setIsAgregarModalOpen(false)
+  }
+
+  // Funciones para manejar los modales de concursos
+  const handleAgregarConcurso = (data: any) => {
+    console.log("Agregando concurso:", data)
+    // Aquí iría la lógica para agregar el concurso
+    setIsAgregarConcursoModalOpen(false)
+  }
+
+  const handleEditarConcurso = (data: any) => {
+    console.log("Editando concurso:", data)
+    // Aquí iría la lógica para editar el concurso
+    setIsEditarConcursoModalOpen(false)
+  }
+
+  const handleEliminarConcurso = (id: string) => {
+    console.log("Eliminando concurso:", id)
+    // Aquí iría la lógica para eliminar el concurso
+    setIsEliminarConcursoModalOpen(false)
   }
 
   // Función para manejar la vista de edición de suscriptor
@@ -82,11 +107,22 @@ export default function AdministracionPage() {
         </div>
         <div className="flex items-center gap-4">
           {/* Botón Agregar solo visible en Usuarios y Concursos */}
-          {(activeTab === "usuarios" || activeTab === "concursos") ? (
+          {activeTab === "usuarios" ? (
             <div className="flex flex-col gap-2">
               <span className="text-sm text-gray-600">&nbsp;</span>
               <button 
                 onClick={() => setIsAgregarModalOpen(true)}
+                className="bg-gradient-to-r from-[#DB086E] to-[#3A05DF] text-white px-6 py-2 rounded-md hover:opacity-90 transition-opacity font-medium flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Agregar
+              </button>
+            </div>
+          ) : activeTab === "concursos" ? (
+            <div className="flex flex-col gap-2">
+              <span className="text-sm text-gray-600">&nbsp;</span>
+              <button 
+                onClick={() => setIsAgregarConcursoModalOpen(true)}
                 className="bg-gradient-to-r from-[#DB086E] to-[#3A05DF] text-white px-6 py-2 rounded-md hover:opacity-90 transition-opacity font-medium flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
@@ -177,7 +213,19 @@ export default function AdministracionPage() {
 
         {/* Contenido de Concursos */}
         <TabsContent value="concursos" className="space-y-6">
-          <Concursos />
+          <Concursos 
+            onEditarConcurso={(concurso) => {
+              console.log("onEditarConcurso llamado con:", concurso)
+              setConcursoSeleccionado(concurso)
+              setIsEditarConcursoModalOpen(true)
+              console.log("Estado del modal:", { concursoSeleccionado: concurso, isEditarConcursoModalOpen: true })
+            }}
+            onEliminarConcurso={(concurso) => {
+              console.log("onEliminarConcurso llamado con:", concurso)
+              setConcursoSeleccionado(concurso)
+              setIsEliminarConcursoModalOpen(true)
+            }}
+          />
         </TabsContent>
       </Tabs>
 
@@ -187,6 +235,30 @@ export default function AdministracionPage() {
         onClose={() => setIsAgregarModalOpen(false)}
         onSave={handleAgregarUsuario}
       />
+
+      {/* Modales de Concursos */}
+      <AgregarConcursoModal
+        isOpen={isAgregarConcursoModalOpen}
+        onClose={() => setIsAgregarConcursoModalOpen(false)}
+        onSave={handleAgregarConcurso}
+      />
+
+      {concursoSeleccionado && (
+        <>
+          <EditarConcursoModal
+            isOpen={isEditarConcursoModalOpen}
+            onClose={() => setIsEditarConcursoModalOpen(false)}
+            concurso={concursoSeleccionado}
+            onSave={handleEditarConcurso}
+          />
+          <EliminarConcursoModal
+            isOpen={isEliminarConcursoModalOpen}
+            onClose={() => setIsEliminarConcursoModalOpen(false)}
+            concurso={concursoSeleccionado}
+            onConfirm={handleEliminarConcurso}
+          />
+        </>
+      )}
     </div>
   )
 }

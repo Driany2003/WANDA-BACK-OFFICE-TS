@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 interface CustomModalProps {
   isOpen: boolean
@@ -34,6 +34,11 @@ export function CustomModal({
           height: className.includes('h-[') ? 'auto' : '100%'
         } : {}}
       >
+        {/* DialogTitle para accesibilidad - oculto visualmente */}
+        <DialogTitle className="sr-only">
+          {title || 'Modal'}
+        </DialogTitle>
+        
         {/* Header personalizado o por defecto */}
         {showHeader && (
           <div className="p-6 border-b border-gray-200 bg-[#FEFEFE]">
