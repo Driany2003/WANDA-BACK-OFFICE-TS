@@ -6,19 +6,13 @@ import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { AlertIcon } from "@/components/icons/adminitracion-icon"
 import { NotificationToast } from "@/components/ui/notification-toast"
-
-interface Concurso {
-  id: string
-  nombre: string
-  fecha: Date
-  nombreAnfitrion: string
-}
+import { ConcursoAdminDTO } from "@/lib/api"
 
 interface EliminarConcursoModalProps {
   isOpen: boolean
   onClose: () => void
-  concurso: Concurso
-  onConfirm: (id: string) => void
+  concurso: ConcursoAdminDTO
+  onConfirm: (concurso: ConcursoAdminDTO) => void
 }
 
 export function EliminarConcursoModal({ isOpen, onClose, concurso, onConfirm }: EliminarConcursoModalProps) {
@@ -30,7 +24,7 @@ export function EliminarConcursoModal({ isOpen, onClose, concurso, onConfirm }: 
   if (!isOpen) return null
 
   const handleConfirm = () => {
-    onConfirm(concurso.id)
+    onConfirm(concurso)
     
     // Mostrar toast de éxito
     showToastMessage("success", "Concurso eliminado", "El concurso ha sido eliminado exitosamente")
@@ -100,7 +94,7 @@ export function EliminarConcursoModal({ isOpen, onClose, concurso, onConfirm }: 
                   Estás por eliminar el siguiente concurso:
                 </p>
                 <p className="text-[18px] font-bold text-[#1C1C1C]">
-                  {concurso.nombre}
+                  {concurso.concNombre}
                 </p>
                 <p className="text-[14px] text-gray-600">
                   ¿Estás seguro de realizar dicha acción?

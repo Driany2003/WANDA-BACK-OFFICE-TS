@@ -1,18 +1,21 @@
 "use client"
 
-import { useState } from "react"
-import { X, Upload, Calendar } from "lucide-react"
-import { AlertIcon } from "@/components/icons/configuraciones-icons"
+import { useState, useEffect } from "react"
+import { X } from "lucide-react"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { NotificationToast } from "@/components/ui/notification-toast"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { anfitrionApi, AnfitrionDTO, concursoApi, ConcursoCreateDTO } from "@/lib/api"
+import { ConcursoImageUpload } from "../../shared/image-upload"
 
 interface AgregarConcursoModalProps {
   isOpen: boolean
@@ -20,42 +23,213 @@ interface AgregarConcursoModalProps {
   onSave: (data: any) => void
 }
 
+interface ValidationErrors {
+  nombreConcurso?: string
+  usuaId?: string
+  wcNecesarias?: string
+  imagen?: string
+}
+
 export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcursoModalProps) {
+  const [anfitriones, setAnfitriones] = useState<AnfitrionDTO[]>([])
+  const [loadingAnfitriones, setLoadingAnfitriones] = useState(false)
+  
+  // Estados para toast
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
+  const [toastType, setToastType] = useState<"success" | "error">("success")
+  
+  // Estados para validación
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
+  
+  // Estado para manejar la imagen como archivo
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  
   const [formData, setFormData] = useState({
-    nombre: "",
+    nombreConcurso: "",
     fecha: new Date(),
+    usuaId: 0,
     nombreAnfitrion: "",
     wcNecesarias: 0,
-    imagen: null as File | null,
-    imagenes: [] as File[],
-    estado: false
+    estado: true
   })
+
+  // Limpiar formData cuando se abra el modal
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        nombreConcurso: "",
+        fecha: new Date(),
+        usuaId: 0,
+        nombreAnfitrion: "",
+        wcNecesarias: 0,
+        estado: true
+      })
+      setSelectedImageFile(null)
+      setUploadError(null)
+      setValidationErrors({})
+    }
+  }, [isOpen])
+
+  // Cargar anfitriones cuando se abra el modal
+  useEffect(() => {
+    if (isOpen) {
+      const fetchAnfitriones = async () => {
+        try {
+          setLoadingAnfitriones(true)
+          const data = await anfitrionApi.getActiveAnfitriones()
+          console.log("🔍 Anfitriones cargados:", data)
+          setAnfitriones(data)
+        } catch (error) {
+          console.error('Error loading anfitriones:', error)
+        } finally {
+          setLoadingAnfitriones(false)
+        }
+      }
+      
+      fetchAnfitriones()
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
-    onClose()
-  }
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFormData(prev => ({ 
-        ...prev, 
-        imagen: file,
-        imagenes: [...prev.imagenes, file]
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Limpiar error de validación para este campo
+    if (validationErrors[field as keyof ValidationErrors]) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [field]: undefined
       }))
     }
   }
 
-  const handleRemoveImage = (index: number) => {
+  const handleAnfitrionChange = (usuaId: string) => {
+    const anfitrion = anfitriones.find(a => a.id === parseInt(usuaId, 10))
+    
     setFormData(prev => ({
       ...prev,
-      imagenes: prev.imagenes.filter((_, i) => i !== index)
+      usuaId: parseInt(usuaId, 10),
+      nombreAnfitrion: anfitrion?.nombre || ""
     }))
+    
+    // Limpiar error de validación para usuaId
+    if (validationErrors.usuaId) {
+      setValidationErrors(prev => ({
+        ...prev,
+        usuaId: undefined
+      }))
+    }
   }
+
+  const validateForm = (): boolean => {
+    const errors: ValidationErrors = {}
+
+    if (!formData.nombreConcurso.trim()) {
+      errors.nombreConcurso = "El nombre del concurso es obligatorio"
+    } else if (formData.nombreConcurso.length > 255) {
+      errors.nombreConcurso = "El nombre no puede exceder 255 caracteres"
+    }
+
+    if (!formData.usuaId || formData.usuaId === 0) {
+      errors.usuaId = "Debe seleccionar un anfitrión"
+    }
+
+    if (!formData.wcNecesarias || formData.wcNecesarias <= 0) {
+      errors.wcNecesarias = "Las WC necesarias deben ser mayor a 0"
+    }
+
+    if (!selectedImageFile) {
+      errors.imagen = "La imagen del concurso es obligatoria"
+    }
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validar formulario
+    if (!validateForm()) {
+      showToastMessage("error", "Error de validación", "Por favor, corrige los errores en el formulario")
+      return
+    }
+    
+    try {
+      setIsUploading(true)
+      
+      // Preparar datos del concurso según la estructura requerida
+      const concursoData: ConcursoCreateDTO = {
+        concNombre: formData.nombreConcurso,
+        concFechaPropuesta: formData.fecha.toISOString(), // Formato ISO 8601 para Timestamp
+        usuaId: formData.usuaId,
+        concWc: formData.wcNecesarias,
+        concIsActive: formData.estado
+      }
+      
+      console.log('📋 Datos del concurso preparados:', concursoData)
+      console.log('🔍 Debug concIsActive:', { valor: concursoData.concIsActive, tipo: typeof concursoData.concIsActive })
+      
+      // Crear concurso - siempre requiere imagen
+      if (selectedImageFile) {
+        const result = await concursoApi.createWithImage(concursoData, selectedImageFile)
+        console.log('✅ Concurso creado con imagen:', result)
+      } else {
+        throw new Error('La imagen del concurso es obligatoria')
+      }
+      
+      // Mostrar toast de éxito
+      showToastMessage("success", "Concurso agregado", "El concurso se ha agregado exitosamente")
+      
+      // Cerrar el modal después de un breve delay
+      setTimeout(() => {
+        onSave(formData)
+        onClose()
+      }, 1000)
+      
+    } catch (error) {
+      console.error("Error al crear concurso:", error)
+      showToastMessage("error", "Error", "Error al crear el concurso")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const showToastMessage = (type: "success" | "error", title: string, message: string) => {
+    setToastType(type)
+    setToastMessage({ title, message })
+    setShowToast(true)
+    
+    // Ocultar el toast después de 5 segundos
+    setTimeout(() => {
+      setShowToast(false)
+    }, 5000)
+  }
+
+  // Manejar cambio de imagen - ahora solo guardamos el archivo
+  const handleImageChange = (file: File | null, preview?: string) => {
+    setSelectedImageFile(file)
+    setUploadError(null)
+    
+    // Limpiar error de validación para imagen
+    if (validationErrors.imagen) {
+      setValidationErrors(prev => ({
+        ...prev,
+        imagen: undefined
+      }))
+    }
+    
+    if (file) {
+      console.log('📁 Archivo de imagen seleccionado:', file.name)
+    } else {
+      console.log('🗑️ Imagen eliminada')
+    }
+  }
+
 
   return (
     <>
@@ -106,12 +280,15 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
                       <Input
                         type="text"
                         placeholder="Nombre"
-                        value={formData.nombre}
-                        onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
-                        className="w-[230px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
+                        value={formData.nombreConcurso}
+                        onChange={(e) => handleInputChange("nombreConcurso", e.target.value)}
+                        className={`w-[230px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm ${validationErrors.nombreConcurso ? 'border-red-500' : ''}`}
                         style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
                         required
                       />
+                      {validationErrors.nombreConcurso && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.nombreConcurso}</p>
+                      )}
                     </div>
                     
                     <div>
@@ -154,15 +331,27 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
                         Nombre anfitrión(a)
                       </label>
-                      <Input
-                        type="text"
-                        placeholder="Nombre anfitrión(a)"
-                        value={formData.nombreAnfitrion}
-                        onChange={(e) => setFormData(prev => ({ ...prev, nombreAnfitrion: e.target.value }))}
-                        className="w-[230px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                        style={{ boxShadow: '0 4px 20px rgba(219,8,110,0.08)' }}
-                        required
-                      />
+                      <Select 
+                        value={formData.usuaId.toString()} 
+                        onValueChange={handleAnfitrionChange}
+                        disabled={loadingAnfitriones}
+                      >
+                        <SelectTrigger className={`w-[230px] h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_20px_rgba(219,8,110,0.08)] border-none ${validationErrors.usuaId ? 'border-red-500' : ''}`}>
+                          <SelectValue placeholder={loadingAnfitriones ? "Cargando..." : "Selecciona un anfitrión"}>
+                            {formData.nombreAnfitrion || (loadingAnfitriones ? "Cargando..." : "Selecciona un anfitrión")}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {anfitriones.map((anfitrion) => (
+                            <SelectItem key={anfitrion.id} value={anfitrion.id.toString()}>
+                              {anfitrion.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {validationErrors.usuaId && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.usuaId}</p>
+                      )}
                     </div>
                     
                     <div>
@@ -173,66 +362,30 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
                         type="number"
                         min="0"
                         value={formData.wcNecesarias}
-                        onChange={(e) => setFormData(prev => ({ ...prev, wcNecesarias: parseInt(e.target.value) || 0 }))}
-                        className="w-[230px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
+                        onChange={(e) => handleInputChange("wcNecesarias", parseInt(e.target.value) || 0)}
+                        className={`w-[230px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm ${validationErrors.wcNecesarias ? 'border-red-500' : ''}`}
                         style={{ boxShadow: '0 4px 20px rgba(219,8,110,0.08)' }}
                         required
                       />
+                      {validationErrors.wcNecesarias && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.wcNecesarias}</p>
+                      )}
                     </div>
                   </div>
 
                   {/* Imagen */}
                   <div>
                     <label className="block text-[12px] font-medium text-[#777777] mb-2">Imagen</label>
-                    <div className="relative">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="hidden"
-                        id="file-input-concurso"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => document.getElementById('file-input-concurso')?.click()}
-                        className="w-full h-[40px] bg-white border border-gray-300 rounded-md text-left px-3 text-[#BBBBBB] font-semibold text-sm hover:border-gray-400 transition-colors cursor-pointer flex items-center justify-between"
-                        style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                      >
-                        <span className="text-[14px] font-semibold">Selecciona una imagen</span>
-                        <Upload className="w-4 h-4 text-gray-400" />
-                      </button>
-                    </div>
-                    {/* Tags de imágenes seleccionadas */}
-                    {formData.imagenes && formData.imagenes.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {formData.imagenes.map((imagen, index) => (
-                          <div
-                            key={index}
-                            className="bg-[#6137E5] text-white flex items-center gap-2"
-                            style={{ 
-                              width: '84px', 
-                              height: '24px', 
-                              borderRadius: '12px',
-                              padding: '0 8px'
-                            }}
-                          >
-                            <span className="text-[14px] font-medium truncate">Img.{String(index + 1).padStart(2, '0')}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveImage(index)}
-                              className="text-white hover:text-gray-200 transition-colors text-[16px]"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                    <ConcursoImageUpload
+                      onImageChange={handleImageChange}
+                      existingImageUrl=""
+                    />
+                    {uploadError && (
+                      <p className="text-red-500 text-xs mt-1">{uploadError}</p>
                     )}
-                    {/* Texto de validación */}
-                    <div className="flex items-center gap-2 mt-2 text-orange-600 text-xs">
-                      <AlertIcon />
-                      <span>Puedes cargar un máximo de cuatro (4) imágenes / JPG, PNG / Máx 40 MB</span>
-                    </div>
+                    {validationErrors.imagen && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.imagen}</p>
+                    )}
                   </div>
 
                   {/* Estado - Debajo de la imagen */}
@@ -265,14 +418,25 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
               </GradientOutlineButton>
               <GradientButton
                 type="submit"
-                className="w-[138px] h-[40px]"
+                disabled={isUploading}
+                className="w-[138px] h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Agregar
+                {isUploading ? 'Subiendo...' : 'Agregar'}
               </GradientButton>
             </div>
           </form>
         </div>
       </div>
+
+      {showToast && (
+        <NotificationToast
+          type={toastType}
+          title={toastMessage.title}
+          message={toastMessage.message}
+          isVisible={showToast}
+          onClose={() => setShowToast(false)}
+        />
+      )}
     </>
   )
 }

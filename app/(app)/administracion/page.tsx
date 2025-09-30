@@ -10,10 +10,11 @@ import {
 } from "@/components/icons/adminitracion-icon"
 
 import { Usuarios } from "@/components/administracion/usuarios"
+import { usuarioApi, concursoApi } from "@/lib/api"
 import { SuscriptoresPermanentes } from "@/components/administracion/suscriptores/permanentes"
 import { SuscriptoresTemporales } from "@/components/administracion/suscriptores/temporales"
 import { Concursos } from "@/components/administracion/concursos"
-import { AgregarUsuarioModal, AgregarConcursoModal, EditarConcursoModal, EliminarConcursoModal } from "@/components/modals/administracion"
+import { AgregarUsuarioModal, AgregarConcursoModal } from "@/components/modals/administracion"
 import { EditarSuscriptorPermanente } from "@/components/administracion/suscriptores/editar-suscriptor-permanente"
 
 export default function AdministracionPage() {
@@ -23,41 +24,33 @@ export default function AdministracionPage() {
   // Estado para el modal de agregar usuario
   const [isAgregarModalOpen, setIsAgregarModalOpen] = useState(false)
   
+  // Estado para refrescar la lista de usuarios
+  const [refreshUsers, setRefreshUsers] = useState(0)
+  
+  // Estado para refrescar la lista de concursos
+  const [refreshConcursos, setRefreshConcursos] = useState(0)
+  
   // Estados para los modales de concursos
   const [isAgregarConcursoModalOpen, setIsAgregarConcursoModalOpen] = useState(false)
-  const [isEditarConcursoModalOpen, setIsEditarConcursoModalOpen] = useState(false)
-  const [isEliminarConcursoModalOpen, setIsEliminarConcursoModalOpen] = useState(false)
-  const [concursoSeleccionado, setConcursoSeleccionado] = useState<any>(null)
   
   // Estados para la vista de edición de suscriptor
   const [showEditView, setShowEditView] = useState(false)
   const [selectedSuscriptor, setSelectedSuscriptor] = useState<any>(null)
 
   // Función para manejar el modal de agregar usuario
-  const handleAgregarUsuario = (data: any) => {
-    console.log("Agregando usuario:", data)
-    // Aquí iría la lógica para agregar el usuario
+  const handleAgregarUsuario = async (data: any) => {
+    console.log("✅ Usuario creado desde el modal:", data)
     setIsAgregarModalOpen(false)
+    setRefreshUsers(prev => prev + 1)
   }
 
   // Funciones para manejar los modales de concursos
-  const handleAgregarConcurso = (data: any) => {
-    console.log("Agregando concurso:", data)
-    // Aquí iría la lógica para agregar el concurso
+  const handleAgregarConcurso = async (data: any) => {
+    console.log("✅ Concurso creado desde el modal:", data)
     setIsAgregarConcursoModalOpen(false)
+    setRefreshConcursos(prev => prev + 1)
   }
 
-  const handleEditarConcurso = (data: any) => {
-    console.log("Editando concurso:", data)
-    // Aquí iría la lógica para editar el concurso
-    setIsEditarConcursoModalOpen(false)
-  }
-
-  const handleEliminarConcurso = (id: string) => {
-    console.log("Eliminando concurso:", id)
-    // Aquí iría la lógica para eliminar el concurso
-    setIsEliminarConcursoModalOpen(false)
-  }
 
   // Función para manejar la vista de edición de suscriptor
   const handleEditSuscriptor = (suscriptor: any) => {
@@ -167,7 +160,7 @@ export default function AdministracionPage() {
 
         {/* Contenido de Usuarios */}
         <TabsContent value="usuarios" className="space-y-6">
-          <Usuarios />
+          <Usuarios refreshTrigger={refreshUsers} />
         </TabsContent>
 
         {/* Contenido de Suscriptores */}
@@ -214,17 +207,7 @@ export default function AdministracionPage() {
         {/* Contenido de Concursos */}
         <TabsContent value="concursos" className="space-y-6">
           <Concursos 
-            onEditarConcurso={(concurso) => {
-              console.log("onEditarConcurso llamado con:", concurso)
-              setConcursoSeleccionado(concurso)
-              setIsEditarConcursoModalOpen(true)
-              console.log("Estado del modal:", { concursoSeleccionado: concurso, isEditarConcursoModalOpen: true })
-            }}
-            onEliminarConcurso={(concurso) => {
-              console.log("onEliminarConcurso llamado con:", concurso)
-              setConcursoSeleccionado(concurso)
-              setIsEliminarConcursoModalOpen(true)
-            }}
+            refreshTrigger={refreshConcursos}
           />
         </TabsContent>
       </Tabs>
@@ -243,22 +226,6 @@ export default function AdministracionPage() {
         onSave={handleAgregarConcurso}
       />
 
-      {concursoSeleccionado && (
-        <>
-          <EditarConcursoModal
-            isOpen={isEditarConcursoModalOpen}
-            onClose={() => setIsEditarConcursoModalOpen(false)}
-            concurso={concursoSeleccionado}
-            onSave={handleEditarConcurso}
-          />
-          <EliminarConcursoModal
-            isOpen={isEliminarConcursoModalOpen}
-            onClose={() => setIsEliminarConcursoModalOpen(false)}
-            concurso={concursoSeleccionado}
-            onConfirm={handleEliminarConcurso}
-          />
-        </>
-      )}
     </div>
   )
 }

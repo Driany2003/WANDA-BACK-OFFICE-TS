@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RefreshCw, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { TachoIcon } from "@/components/icons/configuraciones-icons"
 import { EliminarPromocionModal } from "@/components/modals/configuraciones"
+import { promocionAPI, PromocionActualDTO } from "@/lib/api"
+import { toast } from "sonner"
 
 interface Promocion {
   id: string
@@ -24,32 +26,43 @@ interface Promocion {
 export function PromocionesActuales() {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [selectAll, setSelectAll] = useState(false)
+  const [promociones, setPromociones] = useState<Promocion[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   
   // Estados para el modal de eliminar
   const [isEliminarModalOpen, setIsEliminarModalOpen] = useState(false)
   const [promocionSeleccionada, setPromocionSeleccionada] = useState<Promocion | null>(null)
   
-  // Datos de ejemplo para promociones
-  const PROMOCIONES_DATA: Promocion[] = [
-    {
-      id: "1",
-      nombre: "Promoción 2x1",
-      promocionesSolicitadas: 2,
-      monto: "S/ 15",
-      estado: "Activa"
-    },
-    {
-      id: "2",
-      nombre: "Carreras top",
-      promocionesSolicitadas: 4,
-      monto: "S/ 20",
-      estado: "Inactiva"
+  // Cargar promociones al montar el componente
+  useEffect(() => {
+    loadPromociones()
+  }, [])
+
+  const loadPromociones = async () => {
+    setIsLoading(true)
+    try {
+      const data = await promocionAPI.getActuales()
+      // Convertir el formato de la API al formato del componente
+      const promocionesFormateadas: Promocion[] = data.map((promo) => ({
+        id: promo.promId.toString(),
+        nombre: promo.promNombre,
+        promocionesSolicitadas: promo.promocionesSolicitadas,
+        monto: `S/ ${promo.promMonto.toFixed(2)}`,
+        estado: promo.estado as "Activa" | "Inactiva"
+      }))
+      setPromociones(promocionesFormateadas)
+    } catch (error) {
+      console.error("Error loading promociones:", error)
+      toast.error("Error al cargar las promociones")
+      setPromociones([])
+    } finally {
+      setIsLoading(false)
     }
-  ]
+  }
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedItems(PROMOCIONES_DATA.map(item => item.id))
+      setSelectedItems(promociones.map(item => item.id))
     } else {
       setSelectedItems([])
     }
@@ -65,7 +78,7 @@ export function PromocionesActuales() {
   }
 
   const handleRefresh = () => {
-    console.log("Refrescando promociones...")
+    loadPromociones()
   }
 
   const handleDeleteSelected = () => {
@@ -131,12 +144,25 @@ export function PromocionesActuales() {
               </tr>
             </thead>
             <tbody className="bg-[#FBFBFB]">
-              {PROMOCIONES_DATA.map((promocion, index) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    Cargando promociones...
+                  </td>
+                </tr>
+              ) : promociones.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    No hay promociones activas
+                  </td>
+                </tr>
+              ) : (
+                promociones.map((promocion, index) => (
                 <tr 
                   key={promocion.id} 
                   className="bg-[#FBFBFB]"
                   style={{ 
-                    borderBottom: index < PROMOCIONES_DATA.length - 1 ? '1px solid #A4A4A4' : 'none'
+                    borderBottom: index < promociones.length - 1 ? '1px solid #A4A4A4' : 'none'
                   }}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -184,7 +210,8 @@ export function PromocionesActuales() {
                     </DropdownMenu>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

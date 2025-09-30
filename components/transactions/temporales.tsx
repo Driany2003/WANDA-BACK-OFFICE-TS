@@ -120,6 +120,7 @@ export function Temporales({ onOpenAddModal, onEditIncome, incomeSaved }: Tempor
     }
   }
 
+
   const handleEdit = (income: any) => {
     // Convertir el formato de fecha de DD/MM/YYYY a YYYY-MM-DD para el modal
     const formattedIncome = {

@@ -8,38 +8,42 @@ import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { Switch } from "@/components/ui/switch"
 import { NotificationToast } from "@/components/ui/notification-toast"
+import { usuarioApi } from "@/lib/api"
 
 interface AgregarUsuarioModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: {
-    nombre: string
-    apellido: string
-    email: string
-    username: string
-    password: string
-    confirmPassword: string
-    rol: string
-    estado: boolean
-  }) => void
+  onSave: (data: any) => void
+}
+
+interface ValidationErrors {
+  nombre?: string
+  apellido?: string
+  correo?: string
+  authUsername?: string
+  authPassword?: string
+  validarAuthPassword?: string
+  authRol?: string
 }
 
 export function AgregarUsuarioModal({ isOpen, onClose, onSave }: AgregarUsuarioModalProps) {
   const [formData, setFormData] = useState({
     nombre: "",
     apellido: "",
-    email: "",
-    username: "",
-    password: "",
-    confirmPassword: "",
-    rol: "",
-    estado: true
+    correo: "",
+    authUsername: "",
+    authPassword: "",
+    validarAuthPassword: "",
+    authRol: "",
+    isActive: true
   })
 
-  // Estados para el toast
+  // Estados para validaciones y toast
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
   const [toastType, setToastType] = useState<"success" | "error">("success")
+  const [isCreating, setIsCreating] = useState(false)
 
   // Limpiar formData cuando se abra el modal
   useEffect(() => {
@@ -47,45 +51,133 @@ export function AgregarUsuarioModal({ isOpen, onClose, onSave }: AgregarUsuarioM
       setFormData({
         nombre: "",
         apellido: "",
-        email: "",
-        username: "",
-        password: "",
-        confirmPassword: "",
-        rol: "",
-        estado: true
+        correo: "",
+        authUsername: "",
+        authPassword: "",
+        validarAuthPassword: "",
+        authRol: "",
+        isActive: true
       })
+      setValidationErrors({})
     }
   }, [isOpen])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // Validar que todos los campos estén llenos
-    if (!formData.nombre || !formData.apellido || !formData.email || !formData.username || !formData.password || !formData.confirmPassword || !formData.rol) {
-      showToastMessage("error", "Error de validación", "Por favor, completa todos los campos obligatorios")
-      return
+  // Función para validar el formulario según el DTO
+  const validateForm = (): boolean => {
+    const errors: ValidationErrors = {}
+
+    // Validar nombre
+    if (!formData.nombre.trim()) {
+      errors.nombre = "El nombre es obligatorio"
+    } else if (formData.nombre.length > 255) {
+      errors.nombre = "El nombre no puede exceder 255 caracteres"
     }
 
-    // Validar que las contraseñas coincidan
-    if (formData.password !== formData.confirmPassword) {
-      showToastMessage("error", "Error de validación", "Las contraseñas no coinciden")
+    // Validar apellido
+    if (!formData.apellido.trim()) {
+      errors.apellido = "El apellido es obligatorio"
+    } else if (formData.apellido.length > 255) {
+      errors.apellido = "El apellido no puede exceder 255 caracteres"
+    }
+
+    // Validar correo
+    if (!formData.correo.trim()) {
+      errors.correo = "El correo electrónico es obligatorio"
+    } else if (formData.correo.length > 255) {
+      errors.correo = "El correo no puede exceder 255 caracteres"
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(formData.correo)) {
+        errors.correo = "El formato del correo electrónico no es válido"
+      }
+    }
+
+    // Validar nombre de usuario
+    if (!formData.authUsername.trim()) {
+      errors.authUsername = "El nombre de usuario es obligatorio"
+    } else if (formData.authUsername.length < 3) {
+      errors.authUsername = "El nombre de usuario debe tener al menos 3 caracteres"
+    } else if (formData.authUsername.length > 50) {
+      errors.authUsername = "El nombre de usuario no puede exceder 50 caracteres"
+    }
+
+    // Validar contraseña
+    if (!formData.authPassword.trim()) {
+      errors.authPassword = "La contraseña es obligatoria"
+    } else if (formData.authPassword.length < 6) {
+      errors.authPassword = "La contraseña debe tener al menos 6 caracteres"
+    }
+
+    // Validar confirmación de contraseña
+    if (!formData.validarAuthPassword.trim()) {
+      errors.validarAuthPassword = "La validación de contraseña es obligatoria"
+    } else if (formData.authPassword !== formData.validarAuthPassword) {
+      errors.validarAuthPassword = "Las contraseñas no coinciden"
+    }
+
+    // Validar rol
+    if (!formData.authRol.trim()) {
+      errors.authRol = "El rol es obligatorio"
+    }
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validar formulario
+    if (!validateForm()) {
+      showToastMessage("error", "Error de validación", "Por favor, corrige los errores en el formulario")
       return
     }
     
-    // Guardar los datos
-    onSave(formData)
-    
-    // Mostrar toast de éxito
-    showToastMessage("success", "Usuario agregado", "El usuario se ha agregado exitosamente")
-    
-    // Cerrar el modal después de un breve delay
-    setTimeout(() => {
-      onClose()
-    }, 1500)
+    try {
+      setIsCreating(true)
+      
+      // Preparar datos del usuario para el backend
+      const userData = {
+        nombre: formData.nombre,
+        apellido: formData.apellido,
+        correo: formData.correo,
+        authUsername: formData.authUsername,
+        authPassword: formData.authPassword,
+        validarAuthPassword: formData.validarAuthPassword,
+        authRol: formData.authRol,
+        isActive: formData.isActive
+      }
+      
+      console.log('📋 Datos del usuario preparados:', userData)
+      
+      // Crear usuario
+      const result = await usuarioApi.create(userData)
+      console.log('✅ Usuario creado exitosamente:', result)
+      
+      // Mostrar toast de éxito
+      showToastMessage("success", "Usuario agregado", "El usuario se ha agregado exitosamente")
+      
+      // Cerrar el modal después de un breve delay
+      setTimeout(() => {
+        onSave(formData)
+        onClose()
+      }, 1000)
+      
+    } catch (error) {
+      console.error("Error al crear usuario:", error)
+      showToastMessage("error", "Error", "Error al crear el usuario")
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Limpiar error de validación cuando el usuario empiece a escribir
+    if (validationErrors[field as keyof ValidationErrors]) {
+      setValidationErrors(prev => ({ ...prev, [field]: undefined }))
+    }
   }
 
   const showToastMessage = (type: "success" | "error", title: string, message: string) => {
@@ -143,103 +235,138 @@ export function AgregarUsuarioModal({ isOpen, onClose, onSave }: AgregarUsuarioM
                 <div className="space-y-6 mt-4">
                   {/* Nombre y Apellido - En la misma fila */}
                   <div className="flex gap-4">
-                    <div>
+                    <div className="flex-1">
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
-                        Nombre(s)
+                        Nombre(s) *
                       </label>
                       <Input
                         type="text"
                         placeholder="María"
                         value={formData.nombre}
                         onChange={(e) => handleInputChange("nombre", e.target.value)}
-                        className="w-[230px] h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px]"
+                        className={`w-full h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px] ${
+                          validationErrors.nombre ? 'border-red-500' : ''
+                        }`}
                       />
+                      {validationErrors.nombre && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.nombre}</p>
+                      )}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
-                        Apellido(s)
+                        Apellido(s) *
                       </label>
                       <Input
                         type="text"
                         placeholder="Ramírez"
                         value={formData.apellido}
                         onChange={(e) => handleInputChange("apellido", e.target.value)}
-                        className="w-[230px] h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px]"
+                        className={`w-full h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px] ${
+                          validationErrors.apellido ? 'border-red-500' : ''
+                        }`}
                       />
+                      {validationErrors.apellido && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.apellido}</p>
+                      )}
                     </div>
                   </div>
 
                   {/* Email y Username - En la misma fila */}
                   <div className="flex gap-4">
-                    <div>
+                    <div className="flex-1">
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
                         Correo electrónico *
                       </label>
                       <Input
                         type="email"
                         placeholder="Mar@admin.com"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
-                        className="w-[230px] h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px]"
+                        value={formData.correo}
+                        onChange={(e) => handleInputChange("correo", e.target.value)}
+                        className={`w-full h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px] ${
+                          validationErrors.correo ? 'border-red-500' : ''
+                        }`}
                       />
+                      {validationErrors.correo && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.correo}</p>
+                      )}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
                         Nombre de usuario *
                       </label>
                       <Input
                         type="text"
                         placeholder="USER_ADMIN1"
-                        value={formData.username}
-                        onChange={(e) => handleInputChange("username", e.target.value)}
-                        className="w-[230px] h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px]"
+                        value={formData.authUsername}
+                        onChange={(e) => handleInputChange("authUsername", e.target.value)}
+                        className={`w-full h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px] ${
+                          validationErrors.authUsername ? 'border-red-500' : ''
+                        }`}
                       />
+                      {validationErrors.authUsername && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.authUsername}</p>
+                      )}
                     </div>
                   </div>
 
                   {/* Contraseña y Validar contraseña - En la misma fila */}
                   <div className="flex gap-4">
-                    <div>
+                    <div className="flex-1">
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
                         Contraseña *
                       </label>
                       <Input
                         type="password"
                         placeholder="**********"
-                        value={formData.password}
-                        onChange={(e) => handleInputChange("password", e.target.value)}
-                        className="w-[230px] h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px]"
+                        value={formData.authPassword}
+                        onChange={(e) => handleInputChange("authPassword", e.target.value)}
+                        className={`w-full h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px] ${
+                          validationErrors.authPassword ? 'border-red-500' : ''
+                        }`}
                       />
+                      {validationErrors.authPassword && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.authPassword}</p>
+                      )}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
                         Validar contraseña *
                       </label>
                       <Input
                         type="password"
                         placeholder="**********"
-                        value={formData.confirmPassword}
-                        onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                        className="w-[230px] h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px]"
+                        value={formData.validarAuthPassword}
+                        onChange={(e) => handleInputChange("validarAuthPassword", e.target.value)}
+                        className={`w-full h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] placeholder:text-[#BBBBBB] placeholder:font-medium placeholder:text-[14px] ${
+                          validationErrors.validarAuthPassword ? 'border-red-500' : ''
+                        }`}
                       />
+                      {validationErrors.validarAuthPassword && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.validarAuthPassword}</p>
+                      )}
                     </div>
                   </div>
 
                   {/* Rol - Ancho completo */}
                   <div>
                     <label className="block text-[12px] font-medium text-[#777777] mb-2">
-                      Rol
+                      Rol *
                     </label>
-                    <Select value={formData.rol} onValueChange={(value) => handleInputChange("rol", value)}>
-                      <SelectTrigger className="w-full h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] border-none">
+                    <Select value={formData.authRol} onValueChange={(value) => handleInputChange("authRol", value)}>
+                      <SelectTrigger className={`w-full h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] border-none ${
+                        validationErrors.authRol ? 'border-red-500' : ''
+                      }`}>
                         <SelectValue placeholder="Selecciona un rol" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Administrador">Administrador</SelectItem>
-                        <SelectItem value="Editor">Editor</SelectItem>
-                        <SelectItem value="Usuario">Usuario</SelectItem>
+                        <SelectItem value="Trabajador">Trabajador</SelectItem>
+                        <SelectItem value="Anfitrion">Anfitrión</SelectItem>
                       </SelectContent>
                     </Select>
+                    {validationErrors.authRol && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.authRol}</p>
+                    )}
                   </div>
 
                   {/* Estado - Debajo del rol */}
@@ -249,12 +376,12 @@ export function AgregarUsuarioModal({ isOpen, onClose, onSave }: AgregarUsuarioM
                     </label>
                     <div className="flex items-center">
                       <Switch
-                        checked={formData.estado}
-                        onCheckedChange={(checked) => handleInputChange("estado", checked)}
+                        checked={formData.isActive}
+                        onCheckedChange={(checked) => handleInputChange("isActive", checked)}
                         className="data-[state=checked]:bg-[#A13592]"
                       />
                       <span className="text-[14px] text-[#1C1C1C] ml-3">
-                        {formData.estado ? "Activo" : "Inactivo"}
+                        {formData.isActive ? "Activo" : "Inactivo"}
                       </span>
                     </div>
                   </div>
@@ -272,9 +399,10 @@ export function AgregarUsuarioModal({ isOpen, onClose, onSave }: AgregarUsuarioM
               </GradientOutlineButton>
               <GradientButton
                 type="submit"
-                className="w-[138px] h-[40px]"
+                disabled={isCreating}
+                className="w-[138px] h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Agregar
+                {isCreating ? 'Creando...' : 'Agregar'}
               </GradientButton>
             </div>
           </form>

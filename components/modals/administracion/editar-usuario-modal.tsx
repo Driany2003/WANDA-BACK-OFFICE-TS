@@ -14,10 +14,10 @@ interface EditarUsuarioModalProps {
   onClose: () => void
   initialData: {
     id: string
-    usuario: string
+    username: string
     nombre: string
     email: string
-    rol: string
+    authRol: string
     estado: string
   }
   onSave: (data: {
@@ -26,7 +26,7 @@ interface EditarUsuarioModalProps {
     apellido: string
     email: string
     username: string
-    rol: string
+    authRol: string
     estado: boolean
   }) => void
 }
@@ -38,8 +38,8 @@ export function EditarUsuarioModal({ isOpen, onClose, initialData, onSave }: Edi
     apellido: "",
     email: "",
     username: "",
-    rol: "",
-    estado: true
+    authRol: "",
+    estado: false
   })
 
   // Estados para el toast
@@ -49,29 +49,29 @@ export function EditarUsuarioModal({ isOpen, onClose, initialData, onSave }: Edi
 
   // Actualizar formData cuando cambie initialData
   useEffect(() => {
-    if (initialData) {
+    if (initialData && isOpen) {
       // Separar nombre completo en nombre y apellido
-      const nombreCompleto = initialData.nombre.split(" ")
+      const nombreCompleto = (initialData.nombre || "").split(" ")
       const nombre = nombreCompleto[0] || ""
       const apellido = nombreCompleto.slice(1).join(" ") || ""
 
       setFormData({
-        id: initialData.id,
+        id: initialData.id || "",
         nombre: nombre,
         apellido: apellido,
-        email: initialData.email,
-        username: initialData.usuario,
-        rol: initialData.rol,
+        email: initialData.email || "",
+        username: initialData.username || "",
+        authRol: initialData.authRol || "",
         estado: initialData.estado === "Activo"
       })
     }
-  }, [initialData])
+  }, [initialData, isOpen])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
     // Validar que todos los campos estén llenos
-    if (!formData.nombre || !formData.apellido || !formData.email || !formData.username || !formData.rol) {
+    if (!formData.nombre || !formData.apellido || !formData.email || !formData.username || !formData.authRol) {
       showToastMessage("error", "Error de validación", "Por favor, completa todos los campos obligatorios")
       return
     }
@@ -206,14 +206,18 @@ export function EditarUsuarioModal({ isOpen, onClose, initialData, onSave }: Edi
                     <label className="block text-[12px] font-medium text-[#777777] mb-2">
                       Rol
                     </label>
-                    <Select value={formData.rol} onValueChange={(value) => handleInputChange("rol", value)}>
+                    <Select 
+                      key={formData.authRol} 
+                      value={formData.authRol} 
+                        onValueChange={(value) => handleInputChange("authRol", value)}
+                    >
                       <SelectTrigger className="w-full h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_10px_rgba(219,8,110,0.08)] border-none">
                         <SelectValue placeholder="Selecciona un rol" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Administrador">Administrador</SelectItem>
-                        <SelectItem value="Editor">Editor</SelectItem>
-                        <SelectItem value="Usuario">Usuario</SelectItem>
+                        <SelectItem value="Trabajador">Trabajador</SelectItem>
+                        <SelectItem value="Anfitrion">Anfitrión</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

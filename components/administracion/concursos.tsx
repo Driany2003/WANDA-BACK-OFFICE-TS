@@ -1,56 +1,61 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RefreshCw, Plus } from "lucide-react"
 import { WCIcon, LapizIcon, TachoIcon } from "@/components/icons/adminitracion-icon"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-
-
-interface Concurso {
-  id: string
-  nombre: string
-  fechaTransmision: string
-  anfitrion: string
-  wcNecesarias: number
-  estado: string
-}
+import { concursoApi, ConcursoAdminDTO, ConcursoUpdateDTO } from "@/lib/api"
+import { EditarConcursoModal, EliminarConcursoModal } from "@/components/modals/administracion"
 
 interface ConcursosProps {
-  onEditarConcurso: (concurso: Concurso) => void
-  onEliminarConcurso: (concurso: Concurso) => void
+  refreshTrigger?: number // Para refrescar la lista
 }
 
-export function Concursos({ onEditarConcurso, onEliminarConcurso }: ConcursosProps) {
+export function Concursos({ refreshTrigger }: ConcursosProps) {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [selectAll, setSelectAll] = useState(false)
+  const [concursos, setConcursos] = useState<ConcursoAdminDTO[]>([])
+  const [loading, setLoading] = useState(false)
+  const loadingRef = useRef(false)
   
-
-
-  // Datos de ejemplo para concursos
-  const CONCURSOS_DATA: Concurso[] = [
-    {
-      id: "1",
-      nombre: "Carritos",
-      fechaTransmision: "30/09/2024",
-      anfitrion: "Joselin Quispe",
-      wcNecesarias: 5,
-      estado: "Activo"
-    },
-    {
-      id: "2",
-      nombre: "Cartas",
-      fechaTransmision: "01/10/2024",
-      anfitrion: "Jimena Ortiz",
-      wcNecesarias: 7,
-      estado: "Inactivo"
+  // Estados para modales
+  const [isEditarModalOpen, setIsEditarModalOpen] = useState(false)
+  const [isEliminarModalOpen, setIsEliminarModalOpen] = useState(false)
+  const [concursoSeleccionado, setConcursoSeleccionado] = useState<ConcursoAdminDTO | null>(null)
+  
+  // Función para cargar concursos
+  const loadConcursos = async () => {
+    if (loadingRef.current) {
+      console.log('🚫 Carga ya en progreso, saltando...')
+      return
     }
-  ]
+    
+    try {
+      loadingRef.current = true
+      setLoading(true)
+      const data = await concursoApi.findAllForAdmin()
+      console.log('📋 Concursos cargados:', data)
+      console.log('🔍 Debug estado:', data.map(c => ({ id: c.concId, nombre: c.concNombre, estado: c.estado, tipo: typeof c.estado })))
+      setConcursos(data)
+    } catch (error) {
+      console.error('❌ Error al cargar concursos:', error)
+    } finally {
+      setLoading(false)
+      loadingRef.current = false
+    }
+  }
+
+  // Cargar concursos al montar el componente y cuando cambie refreshTrigger
+  useEffect(() => {
+    loadConcursos()
+  }, [refreshTrigger])
+
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedItems(CONCURSOS_DATA.map(item => item.id))
+      setSelectedItems(concursos.map(item => item.concId.toString()))
     } else {
       setSelectedItems([])
     }
@@ -67,10 +72,72 @@ export function Concursos({ onEditarConcurso, onEliminarConcurso }: ConcursosPro
 
   const handleRefresh = () => {
     console.log("Refrescando concursos...")
+    loadConcursos()
   }
 
   const handleDeleteSelected = () => {
     console.log("Eliminando concursos seleccionados:", selectedItems)
+  }
+
+  const handleEditConcurso = (id: number) => {
+    const concurso = concursos.find(c => c.concId === id)
+    if (concurso) {
+      setConcursoSeleccionado(concurso)
+      setIsEditarModalOpen(true)
+    }
+  }
+
+  const handleDeleteConcurso = (id: number) => {
+    const concurso = concursos.find(c => c.concId === id)
+    if (concurso) {
+      setConcursoSeleccionado(concurso)
+      setIsEliminarModalOpen(true)
+    }
+  }
+
+  const handleEditarConcurso = async (data: any) => {
+    try {
+      console.log("Editando concurso:", data)
+      
+      // Preparar datos para actualización
+      const updateData: ConcursoUpdateDTO = {
+        concId: data.concId,
+        concNombre: data.concNombre,
+        concFechaPropuesta: data.concFechaPropuesta,
+        usuaId: data.usuaId,
+        concWc: data.concWc,
+        concImagen: data.concImagen,
+        concIsActive: data.concIsActive
+      }
+      
+      // Usar updateWithImage - si hay nueva imagen la incluye, sino mantiene la actual
+      const result = await concursoApi.updateWithImage(updateData, data.nuevaImagen)
+      
+      console.log('✅ Concurso actualizado:', result)
+      
+      setIsEditarModalOpen(false)
+      loadConcursos() // Refresh la lista
+      
+    } catch (error) {
+      console.error('❌ Error al actualizar concurso:', error)
+      alert(`Error: ${error instanceof Error ? error.message : 'Error al actualizar concurso'}`)
+    }
+  }
+
+  const handleEliminarConcurso = async (concurso: ConcursoAdminDTO) => {
+    try {
+      console.log("Eliminando concurso:", concurso)
+      
+      const result = await concursoApi.delete(concurso.concId)
+      console.log('✅ Concurso eliminado:', result)
+      
+      setIsEliminarModalOpen(false)
+      loadConcursos() // Refresh la lista
+      
+    } catch (error) {
+      console.error('❌ Error al eliminar concurso:', error)
+      alert(`Error: ${error instanceof Error ? error.message : 'Error al eliminar concurso'}`)
+    }
   }
 
   const getEstadoColor = (estado: string) => {
@@ -141,34 +208,47 @@ export function Concursos({ onEditarConcurso, onEliminarConcurso }: ConcursosPro
               </tr>
             </thead>
             <tbody className="bg-[#FBFBFB]">
-              {CONCURSOS_DATA.map((item, index) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    Cargando concursos...
+                  </td>
+                </tr>
+              ) : concursos.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    No hay concursos disponibles
+                  </td>
+                </tr>
+              ) : (
+                concursos.map((item, index) => (
                 <tr 
-                  key={item.id} 
+                  key={item.concId} 
                   className="bg-[#FBFBFB]"
                   style={{ 
-                    borderBottom: index < CONCURSOS_DATA.length - 1 ? '1px solid #A4A4A4' : 'none'
+                    borderBottom: index < concursos.length - 1 ? '1px solid #A4A4A4' : 'none'
                   }}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        checked={selectedItems.includes(item.id)}
-                        onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
+                        checked={selectedItems.includes(item.concId.toString())}
+                        onCheckedChange={(checked) => handleSelectItem(item.concId.toString(), checked as boolean)}
                         className="data-[state=checked]:bg-[#777777] data-[state=checked]:border-[#777777]"
                       />
-                      <span className="text-sm font-normal text-gray-900 flex-1 text-center">{item.nombre}</span>
+                      <span className="text-sm font-normal text-gray-900 flex-1 text-center">{item.concNombre}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
-                    {item.fechaTransmision}
+                    {new Date(item.concFechaPropuesta).toLocaleDateString('es-ES')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
-                    {item.anfitrion}
+                    {item.nombreAnfitrion}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <WCIcon />
-                      <span>{item.wcNecesarias}</span>
+                      <span>{item.concWc}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -187,17 +267,14 @@ export function Concursos({ onEditarConcurso, onEliminarConcurso }: ConcursosPro
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-54">
                         <DropdownMenuItem 
-                          onClick={() => {
-                            console.log("Editando concurso:", item)
-                            onEditarConcurso(item)
-                          }}
+                          onClick={() => handleEditConcurso(item.concId)}
                           className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
                         >
                           <LapizIcon />
                           Editar concurso
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => onEliminarConcurso(item)}
+                          onClick={() => handleDeleteConcurso(item.concId)}
                           className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
                         >
                           <TachoIcon />
@@ -207,13 +284,31 @@ export function Concursos({ onEditarConcurso, onEliminarConcurso }: ConcursosPro
                     </DropdownMenu>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-
+      {/* Modales */}
+      {concursoSeleccionado && (
+        <>
+          <EditarConcursoModal
+            isOpen={isEditarModalOpen}
+            onClose={() => setIsEditarModalOpen(false)}
+            concurso={concursoSeleccionado}
+            onSave={handleEditarConcurso}
+            onReopen={() => setIsEditarModalOpen(true)}
+          />
+          <EliminarConcursoModal
+            isOpen={isEliminarModalOpen}
+            onClose={() => setIsEliminarModalOpen(false)}
+            concurso={concursoSeleccionado}
+            onConfirm={handleEliminarConcurso}
+          />
+        </>
+      )}
     </div>
   )
 }

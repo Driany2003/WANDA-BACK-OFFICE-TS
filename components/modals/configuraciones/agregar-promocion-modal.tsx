@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { FechasIcon, HoraIcon } from "@/components/icons/configuraciones-icons"
+import { promocionAPI } from "@/lib/api"
+import { toast } from "sonner"
 
 interface AgregarPromocionModalProps {
   isOpen: boolean
@@ -34,6 +36,7 @@ export function AgregarPromocionModal({ isOpen, onClose, onSave }: AgregarPromoc
     terminos: "",
     estado: true
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!isOpen) return null
 
@@ -44,9 +47,77 @@ export function AgregarPromocionModal({ isOpen, onClose, onSave }: AgregarPromoc
     }))
   }
 
-  const handleSubmit = () => {
-    onSave(formData)
-    onClose()
+  const handleSubmit = async () => {
+    // Validaciones
+    if (!formData.nombre.trim()) {
+      toast.error("El nombre de la promoción es obligatorio")
+      return
+    }
+    
+    if (!formData.monto || parseFloat(formData.monto) <= 0) {
+      toast.error("El monto debe ser mayor a 0")
+      return
+    }
+    
+    if (!formData.imagen) {
+      toast.error("Debes seleccionar una imagen")
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      // Formatear fechas a formato YYYY-MM-DD
+      const formatDate = (date: Date) => {
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      }
+      
+      const promocionData = {
+        promNombre: formData.nombre,
+        promMonto: parseFloat(formData.monto),
+        promDescripcion: formData.descripcion || undefined,
+        promFechaInicio: formatDate(formData.fechaInicio),
+        promFechaFin: formatDate(formData.fechaFin),
+        promHoraInicio: formData.horaInicio || undefined,
+        promHoraFin: formData.horaFin || undefined,
+        promImagen: formData.imagen,
+        promTerminoCondiciones: formData.terminos || undefined,
+        promIsActive: formData.estado
+      }
+      
+      const response = await promocionAPI.create(promocionData)
+      
+      if (response.promId) {
+        toast.success("Promoción creada exitosamente")
+        onSave(response)
+        onClose()
+        
+        // Limpiar formulario
+        setFormData({
+          nombre: "",
+          monto: "",
+          descripcion: "",
+          fechaInicio: new Date(),
+          fechaFin: new Date(),
+          horaInicio: "11:00",
+          horaFin: "11:00",
+          imagen: null,
+          imagenes: [],
+          terminos: "",
+          estado: true
+        })
+      } else {
+        toast.error("Error al crear la promoción")
+      }
+    } catch (error) {
+      console.error("Error creating promoción:", error)
+      toast.error("Error al crear la promoción. Por favor, intenta nuevamente.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -330,8 +401,9 @@ export function AgregarPromocionModal({ isOpen, onClose, onSave }: AgregarPromoc
             type="button"
             onClick={handleSubmit}
             className="w-[138px] h-[40px]"
+            disabled={isSubmitting}
           >
-            Agregar
+            {isSubmitting ? "Guardando..." : "Agregar"}
           </GradientButton>
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RefreshCw, MoreVertical, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { TachoIcon } from "@/components/icons/configuraciones-icons"
 import { EliminarPromocionModal } from "@/components/modals/configuraciones"
+import { promocionAPI } from "@/lib/api"
+import { toast } from "sonner"
 
 interface PromocionSolicitada {
   id: string
@@ -19,40 +21,50 @@ interface PromocionSolicitada {
   usuarioTikTok: string
   promocion: string
   estado: "Activa" | "Inactiva"
-  canje: "Aprobado" | "En proceso" | "Rechazado"
+  canje: "APROBADO" | "EN_PROCESO" | "RECHAZADO"
 }
 
 export function PromocionesSolicitadas() {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [selectAll, setSelectAll] = useState(false)
+  const [promociones, setPromociones] = useState<PromocionSolicitada[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   
   // Estados para el modal de eliminar
   const [isEliminarModalOpen, setIsEliminarModalOpen] = useState(false)
   const [promocionSeleccionada, setPromocionSeleccionada] = useState<any>(null)
   
-  // Datos de ejemplo para promociones solicitadas
-  const PROMOCIONES_SOLICITADAS_DATA: PromocionSolicitada[] = [
-    {
-      id: "1",
-      nombre: "Jesús López",
-      usuarioTikTok: "@Jesus21",
-      promocion: "Promo 2x1",
-      estado: "Activa",
-      canje: "Aprobado"
-    },
-    {
-      id: "2",
-      nombre: "José Ortiz",
-      usuarioTikTok: "@Jose2509",
-      promocion: "Carreras Top",
-      estado: "Activa",
-      canje: "En proceso"
+  // Cargar promociones al montar el componente
+  useEffect(() => {
+    loadPromociones()
+  }, [])
+
+  const loadPromociones = async () => {
+    setIsLoading(true)
+    try {
+      const data = await promocionAPI.getSolicitadas()
+      // Convertir el formato de la API al formato del componente
+      const promocionesFormateadas: PromocionSolicitada[] = data.map((promo) => ({
+        id: promo.solId.toString(),
+        nombre: promo.suscNombre,
+        usuarioTikTok: promo.suscUsuarioTikTok,
+        promocion: promo.promNombre,
+        estado: promo.estado as "Activa" | "Inactiva",
+        canje: promo.solCanje as "APROBADO" | "EN_PROCESO" | "RECHAZADO"
+      }))
+      setPromociones(promocionesFormateadas)
+    } catch (error) {
+      console.error("Error loading promociones solicitadas:", error)
+      toast.error("Error al cargar las promociones solicitadas")
+      setPromociones([])
+    } finally {
+      setIsLoading(false)
     }
-  ]
+  }
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedItems(PROMOCIONES_SOLICITADAS_DATA.map(item => item.id))
+      setSelectedItems(promociones.map(item => item.id))
     } else {
       setSelectedItems([])
     }
@@ -68,7 +80,7 @@ export function PromocionesSolicitadas() {
   }
 
   const handleRefresh = () => {
-    console.log("Refrescando promociones solicitadas...")
+    loadPromociones()
   }
 
   const handleDeleteSelected = () => {
@@ -99,21 +111,21 @@ export function PromocionesSolicitadas() {
     const baseClasses = "px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 cursor-pointer"
     
     switch (canje) {
-      case "Aprobado":
+      case "APROBADO":
         return (
           <div className={`${baseClasses} bg-[#6137E5] text-[#FBFBFB] border border-[#6137E5] hover:bg-[#6137E5] hover:text-[#FBFBFB] hover:border-[#6137E5]`}>
             Aprobado
             <ChevronDown className="w-3 h-3" />
           </div>
         )
-      case "En proceso":
+      case "EN_PROCESO":
         return (
           <div className={`${baseClasses} bg-[#FBFBFB] text-[#6137E5] border border-[#6137E5] hover:bg-[#FBFBFB] hover:text-[#6137E5] hover:border-[#6137E5]`}>
             En proceso
             <ChevronDown className="w-3 h-3" />
           </div>
         )
-      case "Rechazado":
+      case "RECHAZADO":
         return (
           <div className={`${baseClasses} bg-[#FBFBFB] text-[#9C82EF] border border-[#9C82EF] hover:bg-[#FBFBFB] hover:text-[#9C82EF] hover:border-[#9C82EF]`}>
             Rechazado
@@ -175,12 +187,25 @@ export function PromocionesSolicitadas() {
               </tr>
             </thead>
             <tbody className="bg-[#FBFBFB]">
-              {PROMOCIONES_SOLICITADAS_DATA.map((promocion, index) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    Cargando promociones solicitadas...
+                  </td>
+                </tr>
+              ) : promociones.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    No hay promociones solicitadas
+                  </td>
+                </tr>
+              ) : (
+                promociones.map((promocion, index) => (
                 <tr 
                   key={promocion.id} 
                   className="bg-[#FBFBFB]"
                   style={{ 
-                    borderBottom: index < PROMOCIONES_SOLICITADAS_DATA.length - 1 ? '1px solid #A4A4A4' : 'none'
+                    borderBottom: index < promociones.length - 1 ? '1px solid #A4A4A4' : 'none'
                   }}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -229,7 +254,8 @@ export function PromocionesSolicitadas() {
                     </DropdownMenu>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

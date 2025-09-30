@@ -12,7 +12,7 @@ interface EliminarUsuarioModalProps {
   onClose: () => void
   usuario: {
     id: string
-    usuario: string
+    username: string
     nombre: string
     email: string
   }
@@ -98,7 +98,7 @@ export function EliminarUsuarioModal({ isOpen, onClose, usuario, onConfirm }: El
                   Estás por eliminar al siguiente usuario:
                 </p>
                 <p className="text-[18px] font-bold text-[#1C1C1C]">
-                  {usuario.usuario || usuario.nombre}
+                  {usuario.username || usuario.nombre}
                 </p>
                 <p className="text-[14px] text-gray-600">
                   ¿Estás seguro de realizar dicha acción?

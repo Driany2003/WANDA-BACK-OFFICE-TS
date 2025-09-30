@@ -1,39 +1,40 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, Upload } from "lucide-react"
-import { AlertIcon } from "@/components/icons/configuraciones-icons"
+import { X } from "lucide-react"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-
-interface Concurso {
-  id: string
-  nombre: string
-  fechaTransmision: string
-  anfitrion: string
-  wcNecesarias: number
-  estado: string
-}
+import { anfitrionApi, AnfitrionDTO, ConcursoAdminDTO } from "@/lib/api"
+import { ConcursoImageUpload } from "@/components/shared/image-upload"
 
 interface EditarConcursoModalProps {
   isOpen: boolean
   onClose: () => void
-  concurso: Concurso
+  concurso: ConcursoAdminDTO
   onSave: (data: any) => void
+  onReopen?: () => void // Función para reabrir el modal
 }
 
-export function EditarConcursoModal({ isOpen, onClose, concurso, onSave }: EditarConcursoModalProps) {
+export function EditarConcursoModal({ isOpen, onClose, concurso, onSave, onReopen }: EditarConcursoModalProps) {
+  const [anfitriones, setAnfitriones] = useState<AnfitrionDTO[]>([])
+  const [loadingAnfitriones, setLoadingAnfitriones] = useState(false)
+  const [imagenActual, setImagenActual] = useState<string>("")
+  const [nuevaImagen, setNuevaImagen] = useState<File | null>(null)
+  const [showImagePreview, setShowImagePreview] = useState(false)
+  
   const [formData, setFormData] = useState({
-    nombre: "",
+    nombreConcurso: "",
     fecha: new Date(),
+    usuaId: 0,
     nombreAnfitrion: "",
     wcNecesarias: 0,
     imagen: null as File | null,
@@ -41,18 +42,44 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave }: Edita
     estado: false
   })
 
+  // Cargar anfitriones cuando se abra el modal
+  useEffect(() => {
+    if (isOpen) {
+      const fetchAnfitriones = async () => {
+        try {
+          setLoadingAnfitriones(true)
+          const data = await anfitrionApi.getActiveAnfitriones()
+          setAnfitriones(data)
+        } catch (error) {
+          console.error('Error loading anfitriones:', error)
+        } finally {
+          setLoadingAnfitriones(false)
+        }
+      }
+      
+      fetchAnfitriones()
+    }
+  }, [isOpen])
+
+  const handleAnfitrionChange = (usuaId: string) => {
+    const anfitrion = anfitriones.find(a => a.id === parseInt(usuaId, 10))
+    
+    setFormData(prev => ({
+      ...prev,
+      usuaId: parseInt(usuaId, 10),
+      nombreAnfitrion: anfitrion?.nombre || ""
+    }))
+  }
+
   useEffect(() => {
     if (concurso) {
       console.log('Concurso recibido:', concurso)
-      console.log('Fecha original:', concurso.fechaTransmision)
+      console.log('Fecha original:', concurso.concFechaPropuesta)
       
-      // Convertir el formato de fecha DD/MM/YYYY a un objeto Date válido
+      // Convertir el formato de fecha del backend a un objeto Date válido
       let fecha = new Date()
       try {
-        const [day, month, year] = concurso.fechaTransmision.split('/')
-        console.log('Partes de fecha:', { day, month, year })
-        
-        fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        fecha = new Date(concurso.concFechaPropuesta)
         console.log('Fecha convertida:', fecha)
         
         // Verificar que la fecha sea válida
@@ -65,49 +92,51 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave }: Edita
         fecha = new Date()
       }
       
+      // Buscar el anfitrión por nombre para obtener su ID
+      const anfitrionEncontrado = anfitriones.find(a => a.nombre === concurso.nombreAnfitrion)
+      
       setFormData({
-        nombre: concurso.nombre,
+        nombreConcurso: concurso.concNombre,
         fecha: fecha,
-        nombreAnfitrion: concurso.anfitrion,
-        wcNecesarias: concurso.wcNecesarias,
+        usuaId: anfitrionEncontrado?.id || 0,
+        nombreAnfitrion: concurso.nombreAnfitrion,
+        wcNecesarias: concurso.concWc,
         imagen: null,
         imagenes: [],
         estado: concurso.estado === "Activo"
       })
+      
+      // Cargar la imagen actual del concurso
+      if (concurso.concImagen) {
+        setImagenActual(concurso.concImagen)
+        console.log('🖼️ Imagen actual cargada:', concurso.concImagen)
+      }
     }
-  }, [concurso])
+  }, [concurso, anfitriones])
 
   if (!isOpen) return null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSave({ 
-      ...formData, 
-      id: concurso.id,
-      fechaTransmision: formData.fecha.toISOString(),
-      anfitrion: formData.nombreAnfitrion,
-      estado: formData.estado ? "Activo" : "Inactivo"
-    })
+    
+    const updateData = {
+      concId: concurso.concId,
+      concNombre: formData.nombreConcurso,
+      concFechaPropuesta: format(formData.fecha, "yyyy-MM-dd HH:mm:ss"), // Formato que espera el backend
+      usuaId: formData.usuaId,
+      concWc: formData.wcNecesarias,
+      concImagen: nuevaImagen ? "nueva_imagen" : concurso.concImagen, // Usar nueva imagen o mantener la actual
+      concIsActive: formData.estado,
+      nuevaImagen: nuevaImagen // Incluir la nueva imagen si existe
+    }
+    
+    console.log('📝 Datos para actualizar concurso:', updateData)
+    console.log('📸 Nueva imagen file:', nuevaImagen)
+    console.log('🖼️ Imagen actual:', concurso.concImagen)
+    onSave(updateData)
     onClose()
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFormData(prev => ({ 
-        ...prev, 
-        imagen: file,
-        imagenes: [...prev.imagenes, file]
-      }))
-    }
-  }
-
-  const handleRemoveImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      imagenes: prev.imagenes.filter((_, i) => i !== index)
-    }))
-  }
 
   return (
     <>
@@ -158,8 +187,8 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave }: Edita
                       <Input
                         type="text"
                         placeholder="Nombre"
-                        value={formData.nombre}
-                        onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                        value={formData.nombreConcurso}
+                        onChange={(e) => setFormData(prev => ({ ...prev, nombreConcurso: e.target.value }))}
                         className="w-[230px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
                         style={{ boxShadow: '0 4px 20px rgba(219,8,110,0.08)' }}
                         required
@@ -204,17 +233,26 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave }: Edita
                   <div className="flex gap-4">
                     <div>
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
-                        Nombre anfitrión(a)
+                        Nombre concurso
                       </label>
-                      <Input
-                        type="text"
-                        placeholder="Nombre anfitrión(a)"
-                        value={formData.nombreAnfitrion}
-                        onChange={(e) => setFormData(prev => ({ ...prev, nombreAnfitrion: e.target.value }))}
-                        className="w-[230px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                        style={{ boxShadow: '0 4px 20px rgba(219,8,110,0.08)' }}
-                        required
-                      />
+                      <Select 
+                        value={formData.usuaId.toString()} 
+                        onValueChange={handleAnfitrionChange}
+                        disabled={loadingAnfitriones}
+                      >
+                        <SelectTrigger className="w-[230px] h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_20px_rgba(219,8,110,0.08)] border-none">
+                          <SelectValue placeholder={loadingAnfitriones ? "Cargando..." : "Selecciona un anfitrión"}>
+                            {formData.nombreAnfitrion || (loadingAnfitriones ? "Cargando..." : "Selecciona un anfitrión")}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {anfitriones.map((anfitrion) => (
+                            <SelectItem key={anfitrion.id} value={anfitrion.id.toString()}>
+                              {anfitrion.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     
                     <div>
@@ -236,55 +274,32 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave }: Edita
                   {/* Imagen */}
                   <div>
                     <label className="block text-[12px] font-medium text-[#777777] mb-2">Imagen</label>
-                    <div className="relative">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="hidden"
-                        id="file-input-concurso-editar"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => document.getElementById('file-input-concurso-editar')?.click()}
-                        className="w-full h-[40px] bg-white border border-gray-300 rounded-md text-left px-3 text-[#BBBBBB] font-semibold text-sm hover:border-gray-400 transition-colors cursor-pointer flex items-center justify-between"
-                        style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                      >
-                        <span className="text-[14px] font-semibold">Selecciona una imagen</span>
-                        <Upload className="w-4 h-4 text-gray-400" />
-                      </button>
-                    </div>
-                    {/* Tags de imágenes seleccionadas */}
-                    {formData.imagenes && formData.imagenes.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {formData.imagenes.map((imagen, index) => (
-                          <div
-                            key={index}
-                            className="bg-[#6137E5] text-white flex items-center gap-2"
-                            style={{ 
-                              width: '84px', 
-                              height: '24px', 
-                              borderRadius: '12px',
-                              padding: '0 8px'
-                            }}
-                          >
-                            <span className="text-[14px] font-medium truncate">Img.{String(index + 1).padStart(2, '0')}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveImage(index)}
-                              className="text-white hover:text-gray-200 transition-colors text-[16px]"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {/* Texto de validación */}
-                    <div className="flex items-center gap-2 mt-2 text-orange-600 text-xs">
-                      <AlertIcon />
-                      <span>Puedes cargar un máximo de cuatro (4) imágenes / JPG, PNG / Máx 40 MB</span>
-                    </div>
+                    
+                    <ConcursoImageUpload
+                      onImageChange={(file, previewUrl) => {
+                        if (file) {
+                          setNuevaImagen(file)
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            imagen: file,
+                            imagenes: [...prev.imagenes, file]
+                          }))
+                          console.log('📸 Nueva imagen seleccionada:', file.name)
+                        } else {
+                          setNuevaImagen(null)
+                          setFormData(prev => ({
+                            ...prev,
+                            imagen: null,
+                            imagenes: []
+                          }))
+                          console.log('🗑️ Imagen eliminada')
+                        }
+                      }}
+                      existingImageUrl={imagenActual ? (imagenActual.startsWith('/') ? `http://localhost:8080${imagenActual}` : imagenActual) : undefined}
+                      onPreviewOpen={() => setShowImagePreview(true)} // Mostrar preview
+                      onPreviewClose={() => setShowImagePreview(false)} // Ocultar preview
+                      className="mb-0"
+                    />
                   </div>
 
                   {/* Estado - Debajo de la imagen */}
@@ -325,6 +340,83 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave }: Edita
           </form>
         </div>
       </div>
+
+      {/* Modal de preview de imagen */}
+      {showImagePreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-[#FBFBFB] rounded-xl w-[800px] h-[600px] mx-4 flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="bg-white px-[20px] py-[16px] border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-[18px] font-semibold text-[#1C1C1C]">
+                Vista previa de la imagen
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowImagePreview(false)}
+                className="text-[#A4A4A4] hover:text-[#1C1C1C] transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 flex items-center justify-center p-6 bg-gray-50">
+              <div className="relative flex items-center justify-center">
+                {/* Mostrar nueva imagen si existe, sino mostrar imagen actual */}
+                {nuevaImagen ? (
+                  <img
+                    src={URL.createObjectURL(nuevaImagen)}
+                    alt="Vista previa de la nueva imagen"
+                    className="rounded-lg shadow-lg"
+                    style={{
+                      maxWidth: '600px',
+                      maxHeight: '400px',
+                      width: 'auto',
+                      height: 'auto',
+                      objectFit: 'contain'
+                    }}
+                    onError={(e) => {
+                      console.error('Error al cargar nueva imagen:', nuevaImagen.name);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : imagenActual ? (
+                  <img
+                    src={imagenActual.startsWith('/') ? `http://localhost:8080${imagenActual}` : imagenActual}
+                    alt="Vista previa de la imagen actual"
+                    className="rounded-lg shadow-lg"
+                    style={{
+                      maxWidth: '600px',
+                      maxHeight: '400px',
+                      width: 'auto',
+                      height: 'auto',
+                      objectFit: 'contain'
+                    }}
+                    onError={(e) => {
+                      console.error('Error al cargar imagen actual:', imagenActual);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="text-gray-500 text-center">
+                    <p>No hay imagen para mostrar</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-white px-[20px] py-[16px] border-t border-gray-200 flex justify-end">
+              <GradientOutlineButton
+                onClick={() => setShowImagePreview(false)}
+                className="px-6 py-2"
+              >
+                Cerrar
+              </GradientOutlineButton>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

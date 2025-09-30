@@ -41,9 +41,13 @@ export default function ConfiguracionesPage() {
   // Estado para el filtro de alertas en autocuidado
   const [filtroAlerta, setFiltroAlerta] = useState<string>("todas")
   
+  // Estado para forzar recarga de listas
+  const [refreshKey, setRefreshKey] = useState(0)
+  
   const handleAgregarPromocion = (data: any) => {
-    console.log("Agregando promoción:", data)
-    // Aquí iría la lógica para agregar la promoción
+    console.log("Promoción agregada exitosamente:", data)
+    // Forzar recarga de las listas de promociones
+    setRefreshKey(prev => prev + 1)
     setIsAgregarModalOpen(false)
   }
   
@@ -246,9 +250,9 @@ export default function ConfiguracionesPage() {
           </div>
 
           {/* Componentes de Promociones según sub-pestaña activa */}
-          {activeSubTab === "actuales" && <PromocionesActuales />}
-          {activeSubTab === "solicitadas" && <PromocionesSolicitadas />}
-          {activeSubTab === "vencidas" && <PromocionesVencidas />}
+          {activeSubTab === "actuales" && <PromocionesActuales key={`actuales-${refreshKey}`} />}
+          {activeSubTab === "solicitadas" && <PromocionesSolicitadas key={`solicitadas-${refreshKey}`} />}
+          {activeSubTab === "vencidas" && <PromocionesVencidas key={`vencidas-${refreshKey}`} />}
         </TabsContent>
 
         {/* Contenido de Novedades */}
