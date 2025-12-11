@@ -13,24 +13,36 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { NovedadesCreateDTO, novedadesAPI, NovedadesResponse } from "@/lib/api"
+import { toast } from "sonner"
 
 interface EditarNovedadModalProps {
   isOpen: boolean
   onClose: () => void
   onSave: (data: any) => void
-  novedadData: {
-    id: string
-    titulo: string
-    descripcion: string
-    fechaInicio: Date | null
-    fechaFin: Date | null
-    horaInicio: string
-    horaFin: string
-    estado: boolean
-  }
+  novedadId: number | null
 }
 
-export function EditarNovedadModal({ isOpen, onClose, onSave, novedadData }: EditarNovedadModalProps) {
+// Helper functions
+const parseDate = (dateString?: string): Date => {
+  if (!dateString) return new Date()
+  if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return new Date(dateString + 'T00:00:00')
+  }
+  return new Date(dateString)
+}
+
+const parseTime = (timeString?: string): string => {
+  if (!timeString) return ""
+  // Si viene como timestamp completo, extraer solo la hora
+  if (timeString.includes(' ')) {
+    const timePart = timeString.split(' ')[1] || timeString.split('T')[1] || ""
+    return timePart.length >= 5 ? timePart.substring(0, 5) : ""
+  }
+  return timeString.length >= 5 ? timeString.substring(0, 5) : timeString
+}
+
+export function EditarNovedadModal({ isOpen, onClose, onSave, novedadId }: EditarNovedadModalProps) {
   const [formData, setFormData] = useState({
     titulo: "",
     descripcion: "",
@@ -42,25 +54,65 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadData }: Edi
     imagenes: [] as File[],
     estado: false
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [dataLoaded, setDataLoaded] = useState(false)
+  const [novedadIdState, setNovedadIdState] = useState<number | null>(null)
 
   // Cargar datos de la novedad cuando se abre el modal
   useEffect(() => {
-    if (isOpen && novedadData) {
+    if (isOpen && novedadId) {
+      setNovedadIdState(novedadId)
+      loadNovedadData(novedadId)
+    } else if (!isOpen) {
+      setDataLoaded(false)
+      setNovedadIdState(null)
+    }
+  }, [isOpen, novedadId])
+
+  const loadNovedadData = async (id: number) => {
+    try {
+      setIsLoading(true)
+      setDataLoaded(false)
+      console.log('🔍 Cargando novedad con noveId:', id)
+      const novedadData = await novedadesAPI.findById(id)
+      
       setFormData({
-        titulo: novedadData.titulo,
-        descripcion: novedadData.descripcion,
-        fechaInicio: novedadData.fechaInicio,
-        fechaFin: novedadData.fechaFin,
-        horaInicio: novedadData.horaInicio,
-        horaFin: novedadData.horaFin,
+        titulo: novedadData.noveTitulo || "",
+        descripcion: novedadData.noveDescripcion || "",
+        fechaInicio: parseDate(novedadData.noveFechaInicio),
+        fechaFin: parseDate(novedadData.noveFechaFin),
+        horaInicio: parseTime(novedadData.noveHoraInicio),
+        horaFin: parseTime(novedadData.noveHoraFin),
         imagen: null,
         imagenes: [],
-        estado: novedadData.estado
+        estado: novedadData.noveIsActive || false
       })
+      setDataLoaded(true)
+    } catch (error) {
+      console.error("Error loading novedad data:", error)
+      toast.error(error instanceof Error ? error.message : "Error al cargar los datos de la novedad")
+      onClose()
+    } finally {
+      setIsLoading(false)
     }
-  }, [isOpen, novedadData])
+  }
 
-  if (!isOpen) return null
+  // No mostrar el modal hasta que los datos estén cargados
+  if (!isOpen || !dataLoaded) {
+    // Mostrar un loader mientras se cargan los datos
+    if (isOpen && isLoading) {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#890277]"></div>
+            <p className="text-gray-600">Cargando datos de la novedad...</p>
+          </div>
+        </div>
+      )
+    }
+    return null
+  }
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -69,9 +121,80 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadData }: Edi
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateForm = (): boolean => {
+    if (!formData.titulo.trim()) {
+      toast.error("El título es obligatorio")
+      return false
+    }
+    if (!formData.descripcion.trim()) {
+      toast.error("La descripción es obligatoria")
+      return false
+    }
+    if (!formData.fechaInicio) {
+      toast.error("La fecha de inicio es obligatoria")
+      return false
+    }
+    if (!formData.fechaFin) {
+      toast.error("La fecha de fin es obligatoria")
+      return false
+    }
+    if (formData.fechaFin < formData.fechaInicio) {
+      toast.error("La fecha de fin no puede ser anterior a la fecha de inicio")
+      return false
+    }
+    return true
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSave({ ...formData, id: novedadData.id })
+    
+    if (!validateForm()) {
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      // Crear DTO para actualizar (imagen es opcional)
+      // Convertir el estado booleano a string "Activa" o "Inactiva"
+      const estadoString = formData.estado ? "Activa" : "Inactiva"
+      
+      const novedadDataDTO = {
+        noveTitulo: formData.titulo.trim(),
+        noveDescripcion: formData.descripcion.trim(),
+        noveFechaInicio: formData.fechaInicio!,
+        noveFechaFin: formData.fechaFin!,
+        noveHoraInicio: formData.horaInicio || undefined,
+        noveHoraFin: formData.horaFin || undefined,
+        noveImagen: formData.imagen || undefined, // Opcional en update
+        noveIsActive: formData.estado, // Mantener para compatibilidad
+        noveEstado: estadoString // Enviar como string "Activa" o "Inactiva"
+      }
+      
+      if (!novedadIdState) {
+        toast.error("ID de novedad no válido")
+        return
+      }
+      
+      const response = await novedadesAPI.updateFromDTO(novedadIdState, novedadDataDTO)
+      
+      if (response.noveId) {
+        toast.success("Novedad actualizada exitosamente")
+        console.log("✅ Novedad actualizada, llamando onSave con:", formData)
+        onSave(formData)
+        setTimeout(() => {
+          onClose()
+        }, 1500)
+      } else {
+        toast.error(response.mensaje || "Error al actualizar la novedad")
+      }
+    } catch (error) {
+      console.error("Error updating novedad:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error al actualizar la novedad. Por favor, intenta nuevamente."
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,7 +294,7 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadData }: Edi
                             <FechasIcon />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
+                        <PopoverContent className="w-auto p-0 z-[10000]">
                           <CalendarComponent
                             mode="single"
                             selected={formData.fechaInicio || undefined}
@@ -196,7 +319,7 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadData }: Edi
                             <FechasIcon />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
+                        <PopoverContent className="w-auto p-0 z-[10000]">
                           <CalendarComponent
                             mode="single"
                             selected={formData.fechaFin || undefined}
@@ -324,9 +447,10 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadData }: Edi
                   </GradientOutlineButton>
                   <GradientButton
                     type="submit"
-                    className="w-[138px] h-[40px]"
+                    disabled={isSubmitting}
+                    className="w-[138px] h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Guardar cambios
+                    {isSubmitting ? "Guardando..." : "Guardar cambios"}
                   </GradientButton>
                 </div>
               </div>

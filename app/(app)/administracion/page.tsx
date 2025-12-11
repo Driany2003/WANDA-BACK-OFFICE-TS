@@ -10,7 +10,7 @@ import {
 } from "@/components/icons/adminitracion-icon"
 
 import { Usuarios } from "@/components/administracion/usuarios"
-import { usuarioApi, concursoApi } from "@/lib/api"
+import { usuarioApi, concursoApi, UsuarioResponseDTO } from "@/lib/api"
 import { SuscriptoresPermanentes } from "@/components/administracion/suscriptores/permanentes"
 import { SuscriptoresTemporales } from "@/components/administracion/suscriptores/temporales"
 import { Concursos } from "@/components/administracion/concursos"
@@ -26,6 +26,8 @@ export default function AdministracionPage() {
   
   // Estado para refrescar la lista de usuarios
   const [refreshUsers, setRefreshUsers] = useState(0)
+  // Estado para el nuevo usuario creado (para optimización sin SELECT completo)
+  const [newUser, setNewUser] = useState<UsuarioResponseDTO | null>(null)
   
   // Estado para refrescar la lista de concursos
   const [refreshConcursos, setRefreshConcursos] = useState(0)
@@ -38,10 +40,14 @@ export default function AdministracionPage() {
   const [selectedSuscriptor, setSelectedSuscriptor] = useState<any>(null)
 
   // Función para manejar el modal de agregar usuario
-  const handleAgregarUsuario = async (data: any) => {
-    console.log("✅ Usuario creado desde el modal:", data)
+  // Ahora recibe el resultado de la API en lugar de formData
+  const handleAgregarUsuario = async (result: UsuarioResponseDTO) => {
+    console.log("✅ Usuario creado desde el modal:", result)
     setIsAgregarModalOpen(false)
-    setRefreshUsers(prev => prev + 1)
+    // Pasar el nuevo usuario al componente para agregarlo sin SELECT completo
+    setNewUser(result)
+    // Limpiar después de un momento para permitir agregar otro usuario
+    setTimeout(() => setNewUser(null), 100)
   }
 
   // Funciones para manejar los modales de concursos
@@ -160,7 +166,7 @@ export default function AdministracionPage() {
 
         {/* Contenido de Usuarios */}
         <TabsContent value="usuarios" className="space-y-6">
-          <Usuarios refreshTrigger={refreshUsers} />
+          <Usuarios refreshTrigger={refreshUsers} newUser={newUser} />
         </TabsContent>
 
         {/* Contenido de Suscriptores */}

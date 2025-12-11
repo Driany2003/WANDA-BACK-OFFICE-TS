@@ -13,9 +13,11 @@ import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { FechasIcon, HoraIcon, AlertIcon } from "@/components/icons/configuraciones-icons"
+import { sponsorsAPI, SponsorUpdateDTO } from "@/lib/api"
+import { toast } from "sonner"
 
 interface Sponsor {
-  id: string
+  sponId: number
   nombre: string
   link: string
   descripcion: string
@@ -23,8 +25,9 @@ interface Sponsor {
   fechaFin: Date
   horaInicio: string
   horaFin: string
-  estado: boolean
-  imagenes: File[]
+  imagen: string // URL o path de la imagen actual
+  imagenes: File[] // Array de imágenes nuevas subidas
+  estado: boolean // Estado activo/inactivo (solo frontend, no se envía al backend)
 }
 
 interface EditarSponsorModalProps {
@@ -34,27 +37,90 @@ interface EditarSponsorModalProps {
   sponsor: Sponsor | null
 }
 
+// Helper functions
+const parseDate = (dateString?: string): Date => {
+  if (!dateString) return new Date()
+  if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return new Date(dateString + 'T00:00:00')
+  }
+  return new Date(dateString)
+}
+
+const parseTime = (timeString?: string): string => {
+  if (!timeString) return ""
+  return timeString.length >= 5 ? timeString.substring(0, 5) : timeString
+}
+
 export function EditarSponsorModal({ isOpen, onClose, onSave, sponsor }: EditarSponsorModalProps) {
   const [formData, setFormData] = useState<Sponsor>({
-    id: "",
+    sponId: 0,
     nombre: "",
     link: "",
     descripcion: "",
     fechaInicio: new Date(),
     fechaFin: new Date(),
-    horaInicio: "11:00",
-    horaFin: "11:00",
-    estado: true,
-    imagenes: []
+    horaInicio: "",
+    horaFin: "",
+    imagen: "",
+    imagenes: [],
+    estado: true
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [dataLoaded, setDataLoaded] = useState(false)
 
   useEffect(() => {
-    if (sponsor) {
-      setFormData(sponsor)
+    if (sponsor && isOpen) {
+      loadSponsorData(sponsor.sponId)
+    } else if (!isOpen) {
+      setDataLoaded(false)
     }
-  }, [sponsor])
+  }, [sponsor, isOpen])
 
-  if (!isOpen) return null
+  const loadSponsorData = async (id: number) => {
+    try {
+      setIsLoading(true)
+      setDataLoaded(false)
+      const sponsorData = await sponsorsAPI.getById(id)
+      
+      setFormData({
+        sponId: sponsorData.sponId || id,
+        nombre: sponsorData.sponNombre || "",
+        link: sponsorData.sponLink || "",
+        descripcion: sponsorData.sponDescripcion || "",
+        fechaInicio: parseDate(sponsorData.sponFechaInicio),
+        fechaFin: parseDate(sponsorData.sponFechaFin),
+        horaInicio: parseTime(sponsorData.sponHoraInicio),
+        horaFin: parseTime(sponsorData.sponHoraFin),
+        imagen: sponsorData.sponImagen || "",
+        imagenes: [],
+        estado: true
+      })
+      setDataLoaded(true)
+    } catch (error) {
+      console.error("Error loading sponsor data:", error)
+      toast.error(error instanceof Error ? error.message : "Error al cargar los datos del sponsor")
+      onClose()
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // No mostrar el modal hasta que los datos estén cargados
+  if (!isOpen || !dataLoaded) {
+    // Mostrar un loader mientras se cargan los datos
+    if (isOpen && isLoading) {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#890277]"></div>
+            <p className="text-gray-600">Cargando datos del sponsor...</p>
+          </div>
+        </div>
+      )
+    }
+    return null
+  }
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -63,15 +129,32 @@ export function EditarSponsorModal({ isOpen, onClose, onSave, sponsor }: EditarS
     }))
   }
 
-  const handleSubmit = () => {
-    onSave(formData)
-    onClose()
-  }
-
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      handleInputChange("imagenes", [...formData.imagenes, file])
+      // Validar tamaño (40 MB máximo)
+      const maxSize = 40 * 1024 * 1024 // 40 MB en bytes
+      if (file.size > maxSize) {
+        toast.error("La imagen no puede superar los 40 MB")
+        return
+      }
+      
+      // Validar tipo de archivo
+      if (!file.type.startsWith('image/')) {
+        toast.error("Solo se permiten archivos de imagen (JPG, PNG)")
+        return
+      }
+
+      // Limitar a máximo 4 imágenes
+      if (formData.imagenes.length >= 4) {
+        toast.error("Puedes cargar un máximo de 4 imágenes")
+        return
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        imagenes: [...prev.imagenes, file]
+      }))
     }
   }
 
@@ -81,6 +164,110 @@ export function EditarSponsorModal({ isOpen, onClose, onSave, sponsor }: EditarS
       imagenes: prev.imagenes.filter((_, i) => i !== index)
     }))
   }
+
+  // Función para convertir File a base64 string
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        const result = reader.result as string
+        // Remover el prefijo "data:image/...;base64," y devolver solo el base64
+        const base64 = result.split(',')[1]
+        resolve(base64)
+      }
+      reader.onerror = error => reject(error)
+    })
+  }
+
+  const validateForm = (): boolean => {
+    if (!formData.nombre.trim()) {
+      toast.error("El nombre es obligatorio")
+      return false
+    }
+    if (!formData.descripcion.trim()) {
+      toast.error("La descripción es obligatoria")
+      return false
+    }
+    if (!formData.link.trim()) {
+      toast.error("El link es obligatorio")
+      return false
+    }
+    if (!formData.fechaInicio) {
+      toast.error("La fecha de inicio es obligatoria")
+      return false
+    }
+    if (!formData.fechaFin) {
+      toast.error("La fecha de fin es obligatoria")
+      return false
+    }
+    if (formData.fechaFin < formData.fechaInicio) {
+      toast.error("La fecha de fin no puede ser anterior a la fecha de inicio")
+      return false
+    }
+    return true
+  }
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      // Determinar qué imagen enviar:
+      // Si hay una nueva imagen subida, convertirla a base64
+      // Si no, usar la imagen actual (string)
+      let imagenToSend = formData.imagen // Por defecto, usar la imagen actual
+      
+      if (formData.imagenes.length > 0) {
+        // Si hay una nueva imagen, convertir la primera a base64
+        try {
+          imagenToSend = await fileToBase64(formData.imagenes[0])
+        } catch (error) {
+          console.error("Error converting image to base64:", error)
+          toast.error("Error al procesar la imagen")
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      // Crear DTO para actualizar sponsor
+      const sponsorUpdateDTO: SponsorUpdateDTO = {
+        sponId: formData.sponId,
+        sponNombre: formData.nombre.trim(),
+        sponDescripcion: formData.descripcion.trim(),
+        sponLink: formData.link.trim(),
+        sponFechaInicio: formData.fechaInicio,
+        sponFechaFin: formData.fechaFin,
+        sponHoraInicio: formData.horaInicio || undefined,
+        sponHoraFin: formData.horaFin || undefined,
+        sponImagen: imagenToSend // Enviar la imagen (string: URL, path o base64)
+      }
+      
+      const response = await sponsorsAPI.update(sponsorUpdateDTO)
+      
+      if (response.sponId) {
+        toast.success("Sponsor actualizado exitosamente")
+        onSave(formData)
+        setTimeout(() => {
+          onClose()
+        }, 1500)
+      } else {
+        toast.error(response.mensaje || "Error al actualizar el sponsor")
+      }
+    } catch (error) {
+      console.error("Error updating sponsor:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error al actualizar el sponsor. Por favor, intenta nuevamente."
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -168,11 +355,13 @@ export function EditarSponsorModal({ isOpen, onClose, onSave, sponsor }: EditarS
                             className="w-[230px] h-[40px] justify-between text-left font-normal"
                             style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
                           >
-                            {format(formData.fechaInicio, "dd/MM/yyyy", { locale: es })}
+                            {formData.fechaInicio && !isNaN(formData.fechaInicio.getTime()) 
+                              ? format(formData.fechaInicio, "dd/MM/yyyy", { locale: es })
+                              : 'Seleccionar fecha'}
                             <FechasIcon />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
+                        <PopoverContent className="w-auto p-0 z-[10000]">
                           <Calendar
                             mode="single"
                             selected={formData.fechaInicio}
@@ -192,11 +381,13 @@ export function EditarSponsorModal({ isOpen, onClose, onSave, sponsor }: EditarS
                             className="w-[230px] h-[40px] justify-between text-left font-normal"
                             style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
                           >
-                            {format(formData.fechaFin, "dd/MM/yyyy", { locale: es })}
+                            {formData.fechaFin && !isNaN(formData.fechaFin.getTime()) 
+                              ? format(formData.fechaFin, "dd/MM/yyyy", { locale: es })
+                              : 'Seleccionar fecha'}
                             <FechasIcon />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
+                        <PopoverContent className="w-auto p-0 z-[10000]">
                           <Calendar
                             mode="single"
                             selected={formData.fechaFin}
@@ -255,21 +446,42 @@ export function EditarSponsorModal({ isOpen, onClose, onSave, sponsor }: EditarS
                       accept="image/*"
                       onChange={handleImageUpload}
                       className="hidden"
-                      id="file-input"
+                      id="file-input-edit"
                     />
                     <button
                       type="button"
-                      onClick={() => document.getElementById('file-input')?.click()}
+                      onClick={() => document.getElementById('file-input-edit')?.click()}
                       className="w-[484px] h-[40px] bg-white border border-gray-300 rounded-md text-left px-3 text-[#BBBBBB] font-semibold text-sm hover:border-gray-400 transition-colors cursor-pointer flex items-center justify-between"
                       style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
                     >
                       <span className="text-[14px] font-semibold">Selecciona una imagen</span>
                       <Upload className="w-4 h-4 text-gray-400" />
                     </button>
-                    {/* Tags de imágenes seleccionadas */}
-                    {formData.imagenes && formData.imagenes.length > 0 && (
+                    
+                    {/* Badges de imágenes: actual y nuevas */}
+                    {(formData.imagen || (formData.imagenes && formData.imagenes.length > 0)) && (
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {formData.imagenes.map((imagen, index) => (
+                        {/* Badge de imagen actual */}
+                        {formData.imagen && (
+                          <div
+                            className="bg-[#6137E5] text-white flex items-center gap-2"
+                            style={{ 
+                              minWidth: '84px', 
+                              height: '24px', 
+                              borderRadius: '12px',
+                              padding: '0 8px'
+                            }}
+                          >
+                            <span className="text-[14px] font-medium truncate max-w-[200px]">
+                              {formData.imagen.length > 30 
+                                ? formData.imagen.substring(0, 30) + '...' 
+                                : formData.imagen}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Badges de nuevas imágenes seleccionadas */}
+                        {formData.imagenes && formData.imagenes.length > 0 && formData.imagenes.map((imagen, index) => (
                           <div
                             key={index}
                             className="bg-[#6137E5] text-white flex items-center gap-2"
@@ -331,9 +543,10 @@ export function EditarSponsorModal({ isOpen, onClose, onSave, sponsor }: EditarS
           <GradientButton
             type="button"
             onClick={handleSubmit}
-            className="w-[138px] h-[40px]"
+            disabled={isSubmitting}
+            className="w-[138px] h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Guardar
+            {isSubmitting ? "Guardando..." : "Guardar"}
           </GradientButton>
         </div>
       </div>

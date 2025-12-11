@@ -598,6 +598,513 @@ export const promocionAPI = {
       console.error('Error fetching promociones vencidas:', error);
       throw error;
     }
+  },
+
+  // Delete promoción
+  async delete(id: number): Promise<{ success: boolean; response?: PromocionResponse }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/promocion/delete/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+
+      console.log('📡 Respuesta del servidor - Status:', response.status);
+      
+      if (!response.ok) {
+        // Intentar obtener el mensaje de error del servidor
+        let errorMessage = `Error HTTP: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.mensaje || errorData.message || errorMessage;
+          console.error('📡 Error del servidor:', errorData);
+        } catch (e) {
+          const errorText = await response.text();
+          console.error('📡 Error del servidor (texto):', errorText);
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Si la respuesta es 200 OK, la eliminación fue exitosa
+      const result: PromocionResponse = await response.json();
+      console.log('📡 Respuesta del servidor - Data:', result);
+      return { success: true, response: result };
+    } catch (error) {
+      console.error('Error deleting promoción:', error);
+      throw error;
+    }
   }
+};
+
+// Novedades Types
+export interface NovedadesCreateDTO {
+  noveTitulo: string;
+  noveDescripcion: string;
+  noveFechaInicio: Date; // Date object that will be converted to ISO string
+  noveFechaFin: Date; // Date object that will be converted to ISO string
+  noveHoraInicio?: string; // Format: HH:mm
+  noveHoraFin?: string; // Format: HH:mm
+  noveImagen: File;
+  noveIsActive: boolean;
+  noveEstado?: string; // "Activa", "Inactiva", "Borrador" - opcional para actualización
+}
+
+export interface NovedadesResponse {
+  noveId?: number;
+  noveTitulo?: string;
+  noveDescripcion?: string;
+  noveFechaInicio?: string;
+  noveFechaFin?: string;
+  noveHoraInicio?: string;
+  noveHoraFin?: string;
+  noveImagen?: string;
+  noveIsActive?: boolean;
+  mensaje?: string;
+  success?: boolean;
+}
+
+export interface NovedadesListResponse {
+  noveId: number;
+  noveTitulo: string;
+  noveDescripcion: string;
+  noveFechaInicio: string; // Timestamp from backend
+  noveFechaFin: string; // Timestamp from backend
+  noveHoraInicio?: string; // Timestamp from backend
+  noveHoraFin?: string; // Timestamp from backend
+  noveImagen: string;
+  noveEstado: string; // "Activa", "Inactiva", "Borrador"
+}
+
+// Helper function to convert date and time to Timestamp format: yyyy-MM-dd HH:mm:ss
+const createTimestamp = (date: Date, time?: string): string => {
+  const dateTime = new Date(date)
+  
+  // Si hay hora, combinarla con la fecha
+  if (time) {
+    const [hours, minutes] = time.split(':')
+    dateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0)
+  }
+  
+  // Formatear a yyyy-MM-dd HH:mm:ss
+  const year = dateTime.getFullYear()
+  const month = String(dateTime.getMonth() + 1).padStart(2, '0')
+  const day = String(dateTime.getDate()).padStart(2, '0')
+  const hours = String(dateTime.getHours()).padStart(2, '0')
+  const minutes = String(dateTime.getMinutes()).padStart(2, '0')
+  const seconds = String(dateTime.getSeconds()).padStart(2, '0')
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+// Novedades API functions
+export const novedadesAPI = {
+  // Create novedad from DTO
+  async createFromDTO(novedadData: NovedadesCreateDTO): Promise<NovedadesResponse> {
+    try {
+      // Crear FormData para enviar archivos (necesario para MultipartFile)
+      const formData = new FormData();
+      
+      // Agregar campos de texto
+      formData.append('noveTitulo', novedadData.noveTitulo);
+      formData.append('noveDescripcion', novedadData.noveDescripcion);
+      
+      // Convertir fechas a LocalDate formato: yyyy-MM-dd (solo fecha, sin hora)
+      formData.append('noveFechaInicio', createLocalDate(novedadData.noveFechaInicio));
+      formData.append('noveFechaFin', createLocalDate(novedadData.noveFechaFin));
+      
+      // Convertir horas a LocalTime formato: HH:mm (solo hora, sin fecha) si están presentes
+      if (novedadData.noveHoraInicio) {
+        formData.append('noveHoraInicio', createLocalTime(novedadData.noveHoraInicio));
+      }
+      if (novedadData.noveHoraFin) {
+        formData.append('noveHoraFin', createLocalTime(novedadData.noveHoraFin));
+      }
+      
+      // Agregar imagen (MultipartFile)
+      formData.append('noveImagen', novedadData.noveImagen);
+      
+      // Agregar estado activo
+      formData.append('noveIsActive', novedadData.noveIsActive.toString());
+
+      const response = await fetch(`${API_BASE_URL}/novedades/create-from-dto`, {
+        method: 'POST',
+        body: formData, // FormData will set the correct Content-Type header (multipart/form-data)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: NovedadesResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error creating novedad:', error);
+      throw error;
+    }
+  },
+
+  // Get novedades activas
+  async getActivas(): Promise<NovedadesListResponse[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/novedades/activas`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      const result: NovedadesListResponse[] = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error fetching novedades activas:', error);
+      throw error;
+    }
+  },
+
+  // Get novedades inactivas
+  async getInactivas(): Promise<NovedadesListResponse[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/novedades/inactivas`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      const result: NovedadesListResponse[] = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error fetching novedades inactivas:', error);
+      throw error;
+    }
+  },
+
+  // Get novedades borrador
+  async getBorrador(): Promise<NovedadesListResponse[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/novedades/borrador`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      const result: NovedadesListResponse[] = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error fetching novedades borrador:', error);
+      throw error;
+    }
+  },
+
+  // Get novedad by ID
+  async findById(id: number): Promise<NovedadesResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/novedades/find-by-id/${id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: NovedadesResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error getting novedad by ID:', error);
+      throw error;
+    }
+  },
+
+  // Update novedad from DTO (imagen es opcional en update)
+  async updateFromDTO(id: number, novedadData: Omit<NovedadesCreateDTO, 'noveImagen'> & { noveImagen?: File }): Promise<NovedadesResponse> {
+    try {
+      // Crear FormData para enviar archivos (necesario para MultipartFile)
+      const formData = new FormData();
+      
+      // Agregar campos de texto
+      formData.append('noveTitulo', novedadData.noveTitulo);
+      formData.append('noveDescripcion', novedadData.noveDescripcion);
+      
+      // Convertir fechas a Timestamp formato: yyyy-MM-dd HH:mm:ss
+      // Las fechas se envían con hora 00:00:00
+      formData.append('noveFechaInicio', createTimestamp(novedadData.noveFechaInicio));
+      formData.append('noveFechaFin', createTimestamp(novedadData.noveFechaFin));
+      
+      // Convertir horas a Timestamp si están presentes (combinando fecha + hora)
+      // Formato: yyyy-MM-dd HH:mm:ss
+      if (novedadData.noveHoraInicio) {
+        formData.append('noveHoraInicio', createTimestamp(novedadData.noveFechaInicio, novedadData.noveHoraInicio));
+      }
+      if (novedadData.noveHoraFin) {
+        formData.append('noveHoraFin', createTimestamp(novedadData.noveFechaFin, novedadData.noveHoraFin));
+      }
+      
+      // Agregar imagen solo si hay una nueva (MultipartFile) - opcional en update
+      if (novedadData.noveImagen) {
+        formData.append('noveImagen', novedadData.noveImagen);
+      }
+      
+      // Agregar estado - priorizar noveEstado si está presente, sino usar noveIsActive
+      if (novedadData.noveEstado) {
+        formData.append('noveEstado', novedadData.noveEstado);
+      } else {
+        formData.append('noveIsActive', novedadData.noveIsActive.toString());
+      }
+
+      const response = await fetch(`${API_BASE_URL}/novedades/update-from-dto/${id}`, {
+        method: 'PUT',
+        body: formData, // FormData will set the correct Content-Type header (multipart/form-data)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: NovedadesResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error updating novedad:', error);
+      throw error;
+    }
+  },
+
+  // Delete novedad
+  async delete(id: number): Promise<{ success: boolean, response?: NovedadesResponse, message?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/novedades/delete/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+
+      console.log('📡 Respuesta del servidor - Status:', response.status);
+      const data: NovedadesResponse = await response.json();
+      console.log('📡 Respuesta del servidor - Data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.mensaje || `Error HTTP: ${response.status}`);
+      }
+
+      return { success: true, response: data };
+    } catch (error) {
+      console.error('Error deleting novedad:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al eliminar la novedad';
+      return { success: false, message: errorMessage };
+    }
+  }
+};
+
+// Helper function to convert date to LocalDate format: yyyy-MM-dd
+const createLocalDate = (date: Date): string => {
+  const isoString = date.toISOString()
+  return isoString.split('T')[0]
+}
+
+// Helper function to convert time to LocalTime format: HH:mm
+const createLocalTime = (time: string): string => {
+  if (time.length === 8) {
+    return time.substring(0, 5) // Toma solo HH:mm
+  }
+  return time
+}
+
+// Sponsors Types
+export interface SponsorCreateDTO {
+  sponNombre: string;
+  sponDescripcion: string;
+  sponLink: string;
+  sponFechaInicio: Date; // Date object that will be converted to LocalDate format
+  sponFechaFin: Date; // Date object that will be converted to LocalDate format
+  sponHoraInicio?: string; // Format: HH:mm - will be converted to LocalTime format
+  sponHoraFin?: string; // Format: HH:mm - will be converted to LocalTime format
+  sponImagen: File;
+}
+
+export interface SponsorResponse {
+  sponId?: number;
+  sponNombre?: string;
+  sponDescripcion?: string;
+  sponLink?: string;
+  sponFechaInicio?: string;
+  sponFechaFin?: string;
+  sponHoraInicio?: string;
+  sponHoraFin?: string;
+  sponImagen?: string;
+  mensaje?: string;
+  success?: boolean;
+}
+
+export interface SponsorListDTO {
+  sponId: number;
+  sponNombre: string;
+}
+
+export interface SponsorUpdateDTO {
+  sponId: number;
+  sponNombre: string;
+  sponDescripcion: string;
+  sponLink: string;
+  sponFechaInicio: Date; // Date object that will be converted to LocalDate format
+  sponFechaFin: Date; // Date object that will be converted to LocalDate format
+  sponHoraInicio?: string; // Format: HH:mm - will be converted to LocalTime format
+  sponHoraFin?: string; // Format: HH:mm - will be converted to LocalTime format
+  sponImagen: string; // String (URL o path de la imagen, no File)
+}
+
+// Sponsors API functions
+export const sponsorsAPI = {
+  // Get all sponsors (solo retorna sponId y sponNombre)
+  async getAll(): Promise<SponsorListDTO[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sponsor/find-all`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: SponsorListDTO[] = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error getting sponsors:', error);
+      throw error;
+    }
+  },
+
+  // Get sponsor by ID (retorna todos los datos del sponsor)
+  async getById(id: number): Promise<SponsorResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sponsor/find-by-id/${id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: SponsorResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error getting sponsor by ID:', error);
+      throw error;
+    }
+  },
+
+  // Create sponsor from DTO
+  async createFromDTO(sponsorData: SponsorCreateDTO): Promise<SponsorResponse> {
+    try {
+      // Crear FormData para enviar archivos (necesario para MultipartFile)
+      const formData = new FormData();
+      
+      // Agregar campos de texto
+      formData.append('sponNombre', sponsorData.sponNombre);
+      formData.append('sponDescripcion', sponsorData.sponDescripcion);
+      formData.append('sponLink', sponsorData.sponLink);
+      
+      // Convertir fechas a LocalDate formato: yyyy-MM-dd
+      formData.append('sponFechaInicio', createLocalDate(sponsorData.sponFechaInicio));
+      formData.append('sponFechaFin', createLocalDate(sponsorData.sponFechaFin));
+      
+      // Convertir horas a LocalTime formato: HH:mm si están presentes
+      if (sponsorData.sponHoraInicio) {
+        formData.append('sponHoraInicio', createLocalTime(sponsorData.sponHoraInicio));
+      }
+      if (sponsorData.sponHoraFin) {
+        formData.append('sponHoraFin', createLocalTime(sponsorData.sponHoraFin));
+      }
+      
+      // Agregar imagen (MultipartFile)
+      formData.append('sponImagen', sponsorData.sponImagen);
+
+      const response = await fetch(`${API_BASE_URL}/sponsor/create`, {
+        method: 'POST',
+        body: formData, // FormData will set the correct Content-Type header (multipart/form-data)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: SponsorResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error creating sponsor:', error);
+      throw error;
+    }
+  },
+
+  // Update sponsor from DTO
+  async update(sponsorData: SponsorUpdateDTO): Promise<SponsorResponse> {
+    try {
+      // Crear objeto JSON para enviar (no FormData, es @RequestBody)
+      const requestBody = {
+        sponId: sponsorData.sponId,
+        sponNombre: sponsorData.sponNombre,
+        sponDescripcion: sponsorData.sponDescripcion,
+        sponLink: sponsorData.sponLink,
+        sponFechaInicio: createLocalDate(sponsorData.sponFechaInicio), // Convertir a yyyy-MM-dd
+        sponFechaFin: createLocalDate(sponsorData.sponFechaFin), // Convertir a yyyy-MM-dd
+        sponHoraInicio: sponsorData.sponHoraInicio ? createLocalTime(sponsorData.sponHoraInicio) : null, // Convertir a HH:mm
+        sponHoraFin: sponsorData.sponHoraFin ? createLocalTime(sponsorData.sponHoraFin) : null, // Convertir a HH:mm
+        sponImagen: sponsorData.sponImagen // String (URL o path)
+      };
+
+      const response = await fetch(`${API_BASE_URL}/sponsor/update`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: SponsorResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error updating sponsor:', error);
+      throw error;
+    }
+  },
 };
 

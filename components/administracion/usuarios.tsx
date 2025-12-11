@@ -6,7 +6,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { RefreshCw, MoreVertical, AlertCircle } from "lucide-react"
 import { LapizIcon, CandadoIcon, TachoIcon } from "@/components/icons/adminitracion-icon"
 import { EditarUsuarioModal, RestablecerPasswordModal, EliminarUsuarioModal } from "@/components/modals/administracion"
-import { usuarioApi, UsuarioAdminDTO, UsuarioUpdateDTO } from "@/lib/api"
+import { usuarioApi, UsuarioAdminDTO, UsuarioUpdateDTO, UsuarioResponseDTO } from "@/lib/api"
+import { NotificationToast } from "@/components/ui/notification-toast"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,9 +27,10 @@ interface Usuario {
 
 interface UsuariosProps {
   refreshTrigger?: number;
+  newUser?: UsuarioResponseDTO | null; // Usuario recién creado para agregar sin SELECT completo
 }
 
-export function Usuarios({ refreshTrigger = 0 }: UsuariosProps) {
+export function Usuarios({ refreshTrigger = 0, newUser }: UsuariosProps) {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [selectAll, setSelectAll] = useState(false)
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
@@ -41,6 +43,24 @@ export function Usuarios({ refreshTrigger = 0 }: UsuariosProps) {
   const [isRestablecerModalOpen, setIsRestablecerModalOpen] = useState(false)
   const [isEliminarModalOpen, setIsEliminarModalOpen] = useState(false)
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<Usuario | null>(null)
+  
+  // Estados para toast
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
+  const [toastType, setToastType] = useState<"success" | "error">("success")
+
+  // Función helper para transformar datos de API a formato Usuario
+  const transformUserData = (userData: any): Usuario => ({
+    id: String(userData.id),
+    username: userData.authUsername || userData.username || '',
+    nombre: `${userData.nombre || ''} ${userData.apellido || ''}`.trim(),
+    apellido: userData.apellido || '',
+    email: userData.correo || userData.email || '',
+    authRol: userData.authRol || '',
+    estado: userData.isActive !== undefined 
+      ? (userData.isActive ? "Activo" : "Inactivo")
+      : (userData.estado === "Activo" || userData.estado === "Inactivo" ? userData.estado : "Activo")
+  })
 
   // Fetch users from API
   const fetchUsuarios = async () => {
@@ -50,15 +70,7 @@ export function Usuarios({ refreshTrigger = 0 }: UsuariosProps) {
       const data = await usuarioApi.findAll()
       
       // Transform API data to component format
-      const transformedData: Usuario[] = data.map((user: UsuarioAdminDTO) => ({
-        id: user.id,
-        username: user.authUsername,
-        nombre: `${user.nombre} ${user.apellido}`,
-        apellido: user.apellido,
-        email: user.correo,
-        authRol: user.authRol,
-        estado: user.estado === "Activo" ? "Activo" : "Inactivo"
-      }))
+      const transformedData: Usuario[] = data.map((user: UsuarioAdminDTO) => transformUserData(user))
       
       setUsuarios(transformedData)
     } catch (err) {
@@ -73,6 +85,17 @@ export function Usuarios({ refreshTrigger = 0 }: UsuariosProps) {
   useEffect(() => {
     fetchUsuarios()
   }, [refreshTrigger])
+
+  // Agregar nuevo usuario al estado local cuando se recibe sin hacer SELECT completo
+  useEffect(() => {
+    if (newUser?.success && newUser.id !== undefined) {
+      setUsuarios(prevUsuarios => {
+        const userId = String(newUser.id)
+        const exists = prevUsuarios.some(u => u.id === userId)
+        return exists ? prevUsuarios : [...prevUsuarios, transformUserData(newUser)]
+      })
+    }
+  }, [newUser])
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -126,52 +149,46 @@ export function Usuarios({ refreshTrigger = 0 }: UsuariosProps) {
     }
   }
 
-  const handleEditUser = (id: string) => {
+  // Función helper para encontrar y seleccionar usuario
+  const selectUserAndOpenModal = (id: string, modalSetter: () => void) => {
     const usuario = usuarios.find(u => u.id === id)
     if (usuario) {
       setUsuarioSeleccionado(usuario)
-      setIsEditarModalOpen(true)
+      modalSetter()
     }
   }
 
-  const handleResetPassword = (id: string) => {
-    const usuario = usuarios.find(u => u.id === id)
-    if (usuario) {
-      setUsuarioSeleccionado(usuario)
-      setIsRestablecerModalOpen(true)
-    }
+  const handleEditUser = (id: string) => selectUserAndOpenModal(id, () => setIsEditarModalOpen(true))
+  const handleResetPassword = (id: string) => selectUserAndOpenModal(id, () => setIsRestablecerModalOpen(true))
+  const handleDeleteUser = (id: string) => selectUserAndOpenModal(id, () => setIsEliminarModalOpen(true))
+
+
+
+  // Función para actualizar un usuario en el estado local sin hacer SELECT completo
+  const updateUsuarioInState = (updatedUser: UsuarioAdminDTO | any) => {
+    setUsuarios(prevUsuarios => {
+      const updatedUserId = String(updatedUser.id)
+      return prevUsuarios.map(user => 
+        String(user.id) === updatedUserId 
+          ? transformUserData({ ...updatedUser, id: updatedUserId })
+          : user
+      )
+    })
   }
 
-  const handleDeleteUser = (id: string) => {
-    const usuario = usuarios.find(u => u.id === id)
-    if (usuario) {
-      setUsuarioSeleccionado(usuario)
-      setIsEliminarModalOpen(true)
-    }
-  }
-
-
-
-  const handleEditarUsuario = async (data: any) => {
+  const handleEditarUsuario = async (result: any) => {
     try {
-      // Transform data to UsuarioUpdateDTO format
-      const updateData: UsuarioUpdateDTO = {
-        id: parseInt(data.id),
-        nombre: data.nombre,
-        apellido: data.apellido,
-        correo: data.email,
-        authUsername: data.username,
-        authRol: data.authRol,
-        isActive: data.estado
+      if (result?.id !== undefined) {
+        updateUsuarioInState(result)
+      } else {
+        await fetchUsuarios()
       }
-      
-      const response = await usuarioApi.update(updateData)
-      await fetchUsuarios() // Refresh the list
-      setIsEditarModalOpen(false)
-      alert(response.mensaje || "Usuario actualizado exitosamente")
     } catch (error) {
-      console.error("Error updating user:", error)
-      alert(`Error: ${error instanceof Error ? error.message : 'Error al actualizar el usuario'}`)
+      console.error("Error updating user state:", error)
+      await fetchUsuarios()
+    } finally {
+      setIsEditarModalOpen(false)
+      setUsuarioSeleccionado(null)
     }
   }
 
@@ -188,17 +205,27 @@ export function Usuarios({ refreshTrigger = 0 }: UsuariosProps) {
 
   const handleConfirmarEliminar = async (id: string) => {
     try {
-      const response = await usuarioApi.delete(id)
+      await usuarioApi.delete(id)
       await fetchUsuarios() // Refresh the list
-      setIsEliminarModalOpen(false)
-      alert(response.mensaje || "Usuario eliminado exitosamente")
+      setUsuarioSeleccionado(null)
+      // Mostrar toast de éxito
+      showToastMessage("success", "Usuario eliminado", "El usuario ha sido eliminado exitosamente")
     } catch (error) {
       console.error("Error deleting user:", error)
-      alert(`Error: ${error instanceof Error ? error.message : 'Error al eliminar el usuario'}`)
+      showToastMessage("error", "Error", error instanceof Error ? error.message : 'Error al eliminar el usuario')
     }
   }
 
-  // Esta función se maneja en page.tsx, no aquí
+  const showToastMessage = (type: "success" | "error", title: string, message: string) => {
+    setToastType(type)
+    setToastMessage({ title, message })
+    setShowToast(true)
+    
+    // Ocultar el toast después de 5 segundos
+    setTimeout(() => {
+      setShowToast(false)
+    }, 5000)
+  }
 
   return (
     <div className="space-y-6">
@@ -368,8 +395,6 @@ export function Usuarios({ refreshTrigger = 0 }: UsuariosProps) {
         </div>
       ) : null}
 
-
-
       {usuarioSeleccionado && (
         <>
           <EditarUsuarioModal
@@ -393,6 +418,17 @@ export function Usuarios({ refreshTrigger = 0 }: UsuariosProps) {
             onConfirm={handleConfirmarEliminar}
           />
         </>
+      )}
+
+      {/* Toast notification */}
+      {showToast && (
+        <NotificationToast
+          type={toastType}
+          title={toastMessage.title}
+          message={toastMessage.message}
+          onClose={() => setShowToast(false)}
+          isVisible={showToast}
+        />
       )}
     </div>
   )

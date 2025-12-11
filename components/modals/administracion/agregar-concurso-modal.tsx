@@ -313,7 +313,7 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
                             <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        <PopoverContent className="w-auto p-0 z-[10000]" align="start">
                           <CalendarComponent
                             mode="single"
                             selected={formData.fecha}

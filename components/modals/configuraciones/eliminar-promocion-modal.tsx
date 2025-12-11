@@ -6,6 +6,8 @@ import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { AlertIcon } from "@/components/icons/adminitracion-icon"
 import { NotificationToast } from "@/components/ui/notification-toast"
+import { promocionAPI } from "@/lib/api"
+import { toast } from "sonner"
 
 interface EliminarPromocionModalProps {
   isOpen: boolean
@@ -17,27 +19,47 @@ interface EliminarPromocionModalProps {
     monto: string
     estado: string
   }
-  onConfirm: (id: string) => void
+  onConfirm: () => void
 }
 
 export function EliminarPromocionModal({ isOpen, onClose, promocion, onConfirm }: EliminarPromocionModalProps) {
-  // Estados para el toast
+  const [isDeleting, setIsDeleting] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
   const [toastType, setToastType] = useState<"success" | "error">("success")
 
   if (!isOpen) return null
 
-  const handleConfirm = () => {
-    onConfirm(promocion.id)
+  const handleConfirm = async () => {
+    setIsDeleting(true)
     
-    // Mostrar toast de éxito
-    showToastMessage("success", "Promoción eliminada", "La promoción ha sido eliminada exitosamente")
-    
-    // Cerrar el modal después de un breve delay
-    setTimeout(() => {
-      onClose()
-    }, 1500)
+    try {
+      const id = parseInt(promocion.id)
+      const result = await promocionAPI.delete(id)
+      
+      if (result.success) {
+        showToastMessage("success", "Promoción eliminada", "La promoción ha sido eliminada exitosamente")
+        toast.success("Promoción eliminada exitosamente")
+        
+        // Llamar al callback para refrescar la lista
+        onConfirm()
+        
+        // Cerrar el modal después de un breve delay
+        setTimeout(() => {
+          onClose()
+        }, 1500)
+      } else {
+        showToastMessage("error", "Error", "No se pudo eliminar la promoción")
+        toast.error("Error al eliminar la promoción")
+      }
+    } catch (error) {
+      console.error("Error deleting promoción:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error al eliminar la promoción. Por favor, intenta nuevamente."
+      showToastMessage("error", "Error", errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const showToastMessage = (type: "success" | "error", title: string, message: string) => {
@@ -45,7 +67,6 @@ export function EliminarPromocionModal({ isOpen, onClose, promocion, onConfirm }
     setToastMessage({ title, message })
     setShowToast(true)
     
-    // Ocultar el toast después de 5 segundos
     setTimeout(() => {
       setShowToast(false)
     }, 5000)
@@ -131,8 +152,9 @@ export function EliminarPromocionModal({ isOpen, onClose, promocion, onConfirm }
               type="button"
               onClick={handleConfirm}
               className="w-[138px] h-[40px]"
+              disabled={isDeleting}
             >
-              Eliminar
+              {isDeleting ? "Eliminando..." : "Eliminar"}
             </GradientButton>
           </div>
         </div>

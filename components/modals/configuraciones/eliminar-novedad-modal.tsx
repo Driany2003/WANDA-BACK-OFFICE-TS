@@ -5,7 +5,8 @@ import { X } from "lucide-react"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { AlertIcon } from "@/components/icons/adminitracion-icon"
-import { NotificationToast } from "@/components/ui/notification-toast"
+import { novedadesAPI } from "@/lib/api"
+import { toast } from "sonner"
 
 interface EliminarNovedadModalProps {
   isOpen: boolean
@@ -18,34 +19,33 @@ interface EliminarNovedadModalProps {
 }
 
 export function EliminarNovedadModal({ isOpen, onClose, novedad, onConfirm }: EliminarNovedadModalProps) {
-  // Estados para el toast
-  const [showToast, setShowToast] = useState(false)
-  const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
-  const [toastType, setToastType] = useState<"success" | "error">("success")
+  const [isDeleting, setIsDeleting] = useState(false)
 
   if (!isOpen) return null
 
-  const handleConfirm = () => {
-    onConfirm(novedad.id)
+  const handleConfirm = async () => {
+    setIsDeleting(true)
     
-    // Mostrar toast de éxito
-    showToastMessage("success", "Novedad eliminada", "La novedad ha sido eliminada exitosamente")
-    
-    // Cerrar el modal después de un breve delay
-    setTimeout(() => {
-      onClose()
-    }, 1500)
-  }
-
-  const showToastMessage = (type: "success" | "error", title: string, message: string) => {
-    setToastType(type)
-    setToastMessage({ title, message })
-    setShowToast(true)
-    
-    // Ocultar el toast después de 5 segundos
-    setTimeout(() => {
-      setShowToast(false)
-    }, 5000)
+    try {
+      const id = parseInt(novedad.id)
+      const result = await novedadesAPI.delete(id)
+      
+      if (result.success) {
+        toast.success("Novedad eliminada exitosamente")
+        onConfirm(novedad.id)
+        setTimeout(() => {
+          onClose()
+        }, 1500)
+      } else {
+        toast.error(result.message || "No se pudo eliminar la novedad")
+      }
+    } catch (error) {
+      console.error("Error deleting novedad:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error al eliminar la novedad. Por favor, intenta nuevamente."
+      toast.error(errorMessage)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -127,24 +127,14 @@ export function EliminarNovedadModal({ isOpen, onClose, novedad, onConfirm }: El
             <GradientButton
               type="button"
               onClick={handleConfirm}
-              className="w-[138px] h-[40px]"
+              disabled={isDeleting}
+              className="w-[138px] h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Eliminar
+              {isDeleting ? "Eliminando..." : "Eliminar"}
             </GradientButton>
           </div>
         </div>
       </div>
-
-      {/* Toast notification */}
-      {showToast && (
-        <NotificationToast
-          type={toastType}
-          title={toastMessage.title}
-          message={toastMessage.message}
-          onClose={() => setShowToast(false)}
-          isVisible={showToast}
-        />
-      )}
     </>
   )
 }

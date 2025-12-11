@@ -190,91 +190,103 @@ export default function TikTokPage() {
           </button>
         </div>
         
-        <div className="overflow-hidden rounded-xl bg-white" style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.15)' }}>
-          <div className="overflow-x-auto">
-            <table className="w-full table-fixed">
-              <thead className="border-b border-gray-200" style={{ boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }}>
-                <tr>
-                  <th className="w-1/5 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                    Nombre
-                  </th>
-                  <th className="w-1/5 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                    Fecha
-                  </th>
-                  <th className="w-1/5 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                    Anfitrión(a)
-                  </th>
-                  <th className="w-1/5 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                    Horario
-                  </th>
-                  <th className="w-1/5 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-[#FBFBFB]">
-                {proximosConcursos.map((concurso, index) => (
-                  <tr 
-                    key={concurso.id} 
-                    className="bg-[#FBFBFB]"
-                    style={{ 
-                      borderBottom: index < proximosConcursos.length - 1 ? '1px solid #A4A4A4' : 'none'
-                    }}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center gap-2">
-                        <Checkbox 
-                          checked={checkedConcursos.includes(concurso.id)}
-                          onCheckedChange={() => toggleConcursoCheck(concurso.id)}
-                          className="data-[state=checked]:bg-[#777777] data-[state=checked]:border-[#777777]"
-                        />
-                        <span className="text-sm font-normal text-gray-900 flex-1 text-center">{concurso.nombre}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
-                      {concurso.fecha}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
-                      {concurso.anfitrion}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
-                      {concurso.horario}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-[#1C1C1C] hover:text-[#6137E5]"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-54">
-                          <DropdownMenuItem 
-                            onClick={() => handleEditarJuego(concurso.id)}
-                            className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
-                          >
-                            <LapizIcon />
-                            Editar juego
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleEliminarJuego(concurso.id)}
-                            className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
-                          >
-                            <TachoIcon />
-                            Eliminar juego
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {proximosConcursos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Image
+              src="/no-hay-concursos.png"
+              alt="No hay concursos"
+              width={320}
+              height={320}
+              className="w-80 h-80 object-contain"
+            />
           </div>
-        </div>
+        ) : (
+          <div className="overflow-hidden rounded-xl bg-white" style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.15)' }}>
+            <div className="overflow-x-auto">
+              <table className="w-full table-fixed">
+                <thead className="border-b border-gray-200" style={{ boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }}>
+                  <tr>
+                    <th className="w-1/5 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                      Nombre
+                    </th>
+                    <th className="w-1/5 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                      Fecha
+                    </th>
+                    <th className="w-1/5 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                      Anfitrión(a)
+                    </th>
+                    <th className="w-1/5 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                      Horario
+                    </th>
+                    <th className="w-1/5 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-[#FBFBFB]">
+                  {proximosConcursos.map((concurso, index) => (
+                    <tr 
+                      key={concurso.id} 
+                      className="bg-[#FBFBFB]"
+                      style={{ 
+                        borderBottom: index < proximosConcursos.length - 1 ? '1px solid #A4A4A4' : 'none'
+                      }}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center gap-2">
+                          <Checkbox 
+                            checked={checkedConcursos.includes(concurso.id)}
+                            onCheckedChange={() => toggleConcursoCheck(concurso.id)}
+                            className="data-[state=checked]:bg-[#777777] data-[state=checked]:border-[#777777]"
+                          />
+                          <span className="text-sm font-normal text-gray-900 flex-1 text-center">{concurso.nombre}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
+                        {concurso.fecha}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
+                        {concurso.anfitrion}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
+                        {concurso.horario}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-[#1C1C1C] hover:text-[#6137E5]"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-54">
+                            <DropdownMenuItem 
+                              onClick={() => handleEditarJuego(concurso.id)}
+                              className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
+                            >
+                              <LapizIcon />
+                              Editar juego
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleEliminarJuego(concurso.id)}
+                              className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
+                            >
+                              <TachoIcon />
+                              Eliminar juego
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modales */}

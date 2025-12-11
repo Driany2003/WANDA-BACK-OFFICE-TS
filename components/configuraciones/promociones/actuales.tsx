@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RefreshCw, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -90,9 +91,9 @@ export function PromocionesActuales() {
     setIsEliminarModalOpen(true)
   }
 
-  const handleConfirmarEliminar = (id: string) => {
-    console.log("Confirmando eliminación de promoción:", id)
-    // Aquí iría la lógica para eliminar la promoción
+  const handleConfirmarEliminar = () => {
+    // Recargar la lista de promociones después de eliminar
+    loadPromociones()
     setIsEliminarModalOpen(false)
     setPromocionSeleccionada(null)
   }
@@ -120,43 +121,52 @@ export function PromocionesActuales() {
         </div>
       </div>
 
-      {/* Tabla de promociones */}
-      <div className="overflow-hidden rounded-xl bg-white" style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.15)' }}>
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed">
-            <thead className="border-b border-gray-200" style={{ boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }}>
-              <tr>
-                <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Nombre
-                </th>
-                <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Promociones solicitadas
-                </th>
-                <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Monto
-                </th>
-                <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Estado
-                </th>
-                <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-[#FBFBFB]">
-              {isLoading ? (
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex flex-col items-center justify-center py-12">
+          <RefreshCw className="w-8 h-8 animate-spin text-gray-400 mb-4" />
+          <p className="text-gray-500">Cargando promociones...</p>
+        </div>
+      )}
+
+      {/* Empty State or Table */}
+      {!isLoading && promociones.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Image
+            src="/no-hay-concursos.png"
+            alt="No hay promociones"
+            width={320}
+            height={320}
+            className="w-80 h-80 object-contain mb-4"
+          />
+          <p className="text-gray-500">No hay promociones disponibles</p>
+        </div>
+      )}
+      {!isLoading && promociones.length > 0 && (
+        <div className="overflow-hidden rounded-xl bg-white" style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.15)' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed">
+              <thead className="border-b border-gray-200" style={{ boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }}>
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                    Cargando promociones...
-                  </td>
+                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Nombre
+                  </th>
+                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Promociones solicitadas
+                  </th>
+                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Monto
+                  </th>
+                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Estado
+                  </th>
+                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Acciones
+                  </th>
                 </tr>
-              ) : promociones.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                    No hay promociones activas
-                  </td>
-                </tr>
-              ) : (
+              </thead>
+              <tbody className="bg-[#FBFBFB]">
+                {
                 promociones.map((promocion, index) => (
                 <tr 
                   key={promocion.id} 
@@ -210,12 +220,12 @@ export function PromocionesActuales() {
                     </DropdownMenu>
                   </td>
                 </tr>
-              ))
-              )}
-            </tbody>
-          </table>
+              ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Modal de Eliminar Promoción */}
       {promocionSeleccionada && (

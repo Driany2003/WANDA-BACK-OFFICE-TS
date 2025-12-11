@@ -52,8 +52,9 @@ export default function ConfiguracionesPage() {
   }
   
   const handleAgregarNovedad = (data: any) => {
-    console.log("Agregando novedad:", data)
-    // Aquí iría la lógica para agregar la novedad
+    console.log("Novedad agregada exitosamente:", data)
+    // Forzar recarga de las listas de novedades
+    setRefreshKey(prev => prev + 1)
     setIsAgregarNovedadModalOpen(false)
   }
   
@@ -64,8 +65,9 @@ export default function ConfiguracionesPage() {
   }
   
   const handleAgregarSponsor = (data: any) => {
-    console.log("Agregando sponsor:", data)
-    // Aquí iría la lógica para agregar el sponsor
+    console.log("Sponsor agregado exitosamente:", data)
+    // Forzar recarga de la lista de sponsors
+    setRefreshKey(prev => prev + 1)
     setIsAgregarSponsorModalOpen(false)
   }
   
@@ -301,9 +303,9 @@ export default function ConfiguracionesPage() {
           </div>
 
           {/* Componentes de Novedades según sub-pestaña activa */}
-          {activeNovedadesSubTab === "activas" && <NovedadesActivas />}
-          {activeNovedadesSubTab === "inactivas" && <NovedadesInactivas />}
-          {activeNovedadesSubTab === "borrador" && <NovedadesBorrador />}
+          {activeNovedadesSubTab === "activas" && <NovedadesActivas key={`activas-${refreshKey}`} />}
+          {activeNovedadesSubTab === "inactivas" && <NovedadesInactivas key={`inactivas-${refreshKey}`} />}
+          {activeNovedadesSubTab === "borrador" && <NovedadesBorrador key={`borrador-${refreshKey}`} />}
         </TabsContent>
 
         {/* Contenido de Autocuidado */}
@@ -318,7 +320,7 @@ export default function ConfiguracionesPage() {
 
         {/* Contenido de Sponsors */}
         <TabsContent value="sponsors" className="space-y-6 min-h-[600px]">
-          <Sponsors />
+          <Sponsors key={`sponsors-${refreshKey}`} />
         </TabsContent>
       </Tabs>
 

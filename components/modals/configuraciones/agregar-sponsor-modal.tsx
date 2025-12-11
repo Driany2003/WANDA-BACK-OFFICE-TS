@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { FechasIcon, HoraIcon, AlertIcon } from "@/components/icons/configuraciones-icons"
+import { SponsorCreateDTO, sponsorsAPI } from "@/lib/api"
+import { toast } from "sonner"
 
 interface AgregarSponsorModalProps {
   isOpen: boolean
@@ -33,6 +35,7 @@ export function AgregarSponsorModal({ isOpen, onClose, onSave }: AgregarSponsorM
     imagenes: [] as File[],
     estado: true
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!isOpen) return null
 
@@ -43,9 +46,78 @@ export function AgregarSponsorModal({ isOpen, onClose, onSave }: AgregarSponsorM
     }))
   }
 
-  const handleSubmit = () => {
-    onSave(formData)
-    onClose()
+  const validateForm = (): boolean => {
+    if (!formData.nombre.trim()) {
+      toast.error("El nombre es obligatorio")
+      return false
+    }
+    if (!formData.descripcion.trim()) {
+      toast.error("La descripción es obligatoria")
+      return false
+    }
+    if (!formData.link.trim()) {
+      toast.error("El link es obligatorio")
+      return false
+    }
+    if (!formData.fechaInicio) {
+      toast.error("La fecha de inicio es obligatoria")
+      return false
+    }
+    if (!formData.fechaFin) {
+      toast.error("La fecha de fin es obligatoria")
+      return false
+    }
+    if (formData.fechaFin < formData.fechaInicio) {
+      toast.error("La fecha de fin no puede ser anterior a la fecha de inicio")
+      return false
+    }
+    if (!formData.imagen) {
+      toast.error("La imagen es obligatoria")
+      return false
+    }
+    return true
+  }
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      // Crear DTO para crear sponsor
+      const sponsorDataDTO: SponsorCreateDTO = {
+        sponNombre: formData.nombre.trim(),
+        sponDescripcion: formData.descripcion.trim(),
+        sponLink: formData.link.trim(),
+        sponFechaInicio: formData.fechaInicio,
+        sponFechaFin: formData.fechaFin,
+        sponHoraInicio: formData.horaInicio || undefined,
+        sponHoraFin: formData.horaFin || undefined,
+        sponImagen: formData.imagen!
+      }
+      
+      const response = await sponsorsAPI.createFromDTO(sponsorDataDTO)
+      
+      if (response.sponId) {
+        toast.success("Sponsor creado exitosamente")
+        onSave(sponsorDataDTO)
+        setTimeout(() => {
+          onClose()
+        }, 1500)
+      } else {
+        toast.error(response.mensaje || "Error al crear el sponsor")
+      }
+    } catch (error) {
+      console.error("Error creating sponsor:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error al crear el sponsor. Por favor, intenta nuevamente."
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,7 +169,7 @@ export function AgregarSponsorModal({ isOpen, onClose, onSave }: AgregarSponsorM
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-[30px] py-4 sm:py-3 flex justify-center">
           <div className="w-full max-w-[484px] h-auto min-h-[400px] pt-8">
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form id="sponsor-form" onSubmit={handleSubmit} className="space-y-3">
             {/* Datos del sponsor */}
             <div className="space-y-4">
               <h3 className="text-base font-medium text-gray-800">Datos del sponsor</h3>
@@ -157,7 +229,7 @@ export function AgregarSponsorModal({ isOpen, onClose, onSave }: AgregarSponsorM
                           <FechasIcon />
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                    <PopoverContent className="w-auto p-0 z-[10000]">
                       <Calendar
                         mode="single"
                         selected={formData.fechaInicio}
@@ -181,7 +253,7 @@ export function AgregarSponsorModal({ isOpen, onClose, onSave }: AgregarSponsorM
                         <FechasIcon />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                    <PopoverContent className="w-auto p-0 z-[10000]">
                       <Calendar
                         mode="single"
                         selected={formData.fechaFin}
@@ -302,9 +374,10 @@ export function AgregarSponsorModal({ isOpen, onClose, onSave }: AgregarSponsorM
           <GradientButton
             type="button"
             onClick={handleSubmit}
-            className="w-[138px] h-[40px]"
+            disabled={isSubmitting}
+            className="w-[138px] h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Agregar
+            {isSubmitting ? "Guardando..." : "Agregar"}
           </GradientButton>
         </div>
       </div>

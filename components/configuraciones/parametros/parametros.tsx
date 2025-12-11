@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -20,6 +21,7 @@ interface Parametro {
 
 export function Parametros() {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
   
   // Estados para los modales
   const [isEditarModalOpen, setIsEditarModalOpen] = useState(false)
@@ -84,7 +86,11 @@ export function Parametros() {
 
   const handleRefresh = () => {
     // Lógica para refrescar datos
+    setLoading(true)
     console.log("Refrescando parámetros...")
+    setTimeout(() => {
+      setLoading(false)
+    }, 500)
   }
 
   const handleEditarParametro = (parametro: Parametro) => {
@@ -135,37 +141,58 @@ export function Parametros() {
         </button>
       </div>
 
-      {/* Tabla de parámetros */}
-      <div className="overflow-hidden rounded-xl bg-white" style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.15)' }}>
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed">
-            <thead className="border-b border-gray-200" style={{ boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }}>
-              <tr>
-                <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Nombre
-                </th>
-                <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Valor
-                </th>
-                <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Descripción
-                </th>
-                <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Fecha creación
-                </th>
-                <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Fecha modificación
-                </th>
-                <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Estado
-                </th>
-                <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-[#FBFBFB]">
-              {parametrosData.map((item, index) => (
+      {/* Loading State */}
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-12">
+          <RefreshCw className="w-8 h-8 animate-spin text-gray-400 mb-4" />
+          <p className="text-gray-500">Cargando parámetros...</p>
+        </div>
+      )}
+
+      {/* Empty State or Table */}
+      {!loading && parametrosData.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Image
+            src="/no-hay-concursos.png"
+            alt="No hay parámetros"
+            width={320}
+            height={320}
+            className="w-80 h-80 object-contain mb-4"
+          />
+          <p className="text-gray-500">No hay parámetros disponibles</p>
+        </div>
+      )}
+      {!loading && parametrosData.length > 0 && (
+        <div className="overflow-hidden rounded-xl bg-white" style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.15)' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed">
+              <thead className="border-b border-gray-200" style={{ boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }}>
+                <tr>
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Nombre
+                  </th>
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Valor
+                  </th>
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Descripción
+                  </th>
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Fecha creación
+                  </th>
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Fecha modificación
+                  </th>
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Estado
+                  </th>
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-[#FBFBFB]">
+                {parametrosData.map((item, index) => (
                 <tr 
                   key={item.id} 
                   className="bg-[#FBFBFB]"
@@ -231,10 +258,11 @@ export function Parametros() {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Modal de Editar Parámetro */}
       {parametroSeleccionado && (

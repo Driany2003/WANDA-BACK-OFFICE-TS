@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { RotateCcw } from "lucide-react"
@@ -28,81 +29,93 @@ export function ContestTable({ data, title = "Historial", showStatus = false, sh
         </div>
       </div>
 
-      {/* Tabla */}
-      <div className="overflow-hidden rounded-t-xl" style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.15)' }}>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-[#FEFEFE]" style={{ boxShadow: '0 2px 10px rgba(219, 8, 110, 0.08)' }}>
-              <tr>
-                <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
-                  Concurso
-                </th>
-                <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
-                  Fecha
-                </th>
-                <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
-                  WC usadas
-                </th>
-                {showReward && (
+      {/* Tabla o imagen cuando no hay concursos */}
+      {data.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Image
+            src="/no-hay-concursos.png"
+            alt="No hay concursos"
+            width={320}
+            height={320}
+            className="w-80 h-80 object-contain"
+          />
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-t-xl" style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.15)' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-[#FEFEFE]" style={{ boxShadow: '0 2px 10px rgba(219, 8, 110, 0.08)' }}>
+                <tr>
                   <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
-                    Recompensa
+                    Concurso
                   </th>
-                )}
-                <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
-                  N° de opciones
-                </th>
-                {showStatus && (
                   <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
-                    Estado
+                    Fecha
                   </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="bg-[#FBFBFB]">
-              {data.map((item, index) => (
-                <tr 
-                  key={item.id} 
-                  className="bg-[#FBFBFB]"
-                  style={{ 
-                    borderBottom: index < data.length - 1 ? '1px solid #A4A4A4' : 'none'
-                  }}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">{item.concurso}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">{item.fecha}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <div className="flex justify-center items-center gap-2">
-                      <WcIcon />
-                      <span className="text-sm font-normal text-gray-900">{item.wcUsadas}</span>
-                    </div>
-                  </td>
+                  <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
+                    WC usadas
+                  </th>
                   {showReward && (
+                    <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
+                      Recompensa
+                    </th>
+                  )}
+                  <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
+                    N° de opciones
+                  </th>
+                  {showStatus && (
+                    <th className="px-6 py-3 text-center text-base font-medium text-[#1C1C1C] uppercase tracking-wider">
+                      Estado
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="bg-[#FBFBFB]">
+                {data.map((item, index) => (
+                  <tr 
+                    key={item.id} 
+                    className="bg-[#FBFBFB]"
+                    style={{ 
+                      borderBottom: index < data.length - 1 ? '1px solid #A4A4A4' : 'none'
+                    }}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">{item.concurso}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">{item.fecha}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex justify-center items-center gap-2">
                         <WcIcon />
-                        <span className="text-sm font-normal text-gray-900">{item.recompensa}</span>
+                        <span className="text-sm font-normal text-gray-900">{item.wcUsadas}</span>
                       </div>
                     </td>
-                  )}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-600 text-center">{item.numOpciones}</td>
-                  {showStatus && (
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex justify-center">
-                        <Badge className={
-                          item.estado === "Cerrado" 
-                            ? "bg-[#6137E5] text-[#FBFBFB] border border-[#6137E5] hover:bg-[#6137E5] hover:text-[#FBFBFB] hover:border-[#6137E5]"
-                            : "bg-[#FBFBFB] text-[#6137E5] border border-[#6137E5] hover:bg-[#FBFBFB] hover:text-[#6137E5] hover:border-[#6137E5]"
-                        }>
-                          {item.estado}
-                        </Badge>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {showReward && (
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex justify-center items-center gap-2">
+                          <WcIcon />
+                          <span className="text-sm font-normal text-gray-900">{item.recompensa}</span>
+                        </div>
+                      </td>
+                    )}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-600 text-center">{item.numOpciones}</td>
+                    {showStatus && (
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex justify-center">
+                          <Badge className={
+                            item.estado === "Cerrado" 
+                              ? "bg-[#6137E5] text-[#FBFBFB] border border-[#6137E5] hover:bg-[#6137E5] hover:text-[#FBFBFB] hover:border-[#6137E5]"
+                              : "bg-[#FBFBFB] text-[#6137E5] border border-[#6137E5] hover:bg-[#FBFBFB] hover:text-[#6137E5] hover:border-[#6137E5]"
+                          }>
+                            {item.estado}
+                          </Badge>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

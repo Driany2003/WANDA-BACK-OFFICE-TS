@@ -22,59 +22,141 @@ interface AgregarPromocionModalProps {
   onSave: (data: any) => void
 }
 
+interface FormData {
+  nombre: string
+  monto: string
+  descripcion: string
+  fechaInicio: Date
+  fechaFin: Date
+  horaInicio: string
+  horaFin: string
+  imagen: File | null
+  terminos: string
+  estado: boolean
+}
+
+const INITIAL_FORM_DATA: FormData = {
+  nombre: "",
+  monto: "",
+  descripcion: "",
+  fechaInicio: new Date(),
+  fechaFin: new Date(),
+  horaInicio: "11:00",
+  horaFin: "11:00",
+  imagen: null,
+  terminos: "",
+  estado: true
+}
+
+const ALLOWED_KEYS = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']
+const INPUT_STYLES = { boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }
+const HEADER_STYLES = { boxShadow: '0 4px 10px rgba(219, 8, 110, 0.08)' }
+
 export function AgregarPromocionModal({ isOpen, onClose, onSave }: AgregarPromocionModalProps) {
-  const [formData, setFormData] = useState({
-    nombre: "",
-    monto: "",
-    descripcion: "",
-    fechaInicio: new Date(),
-    fechaFin: new Date(),
-    horaInicio: "11:00",
-    horaFin: "11:00",
-    imagen: null as File | null,
-    imagenes: [] as File[],
-    terminos: "",
-    estado: true
-  })
+  const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!isOpen) return null
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
+  // Helpers
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
-  const handleSubmit = async () => {
-    // Validaciones
+  const getTodayDate = (): Date => {
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    return hoy
+  }
+
+  const normalizeDate = (date: Date): Date => {
+    const normalized = new Date(date)
+    normalized.setHours(0, 0, 0, 0)
+    return normalized
+  }
+
+  const resetForm = () => {
+    setFormData(INITIAL_FORM_DATA)
+  }
+
+  // Handlers
+  const handleInputChange = (field: keyof FormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9.]/g, '')
+    const parts = value.split('.')
+    const formattedValue = parts.length > 1 
+      ? parts[0] + '.' + parts.slice(1).join('').substring(0, 2)
+      : parts[0]
+    
+    if (formattedValue === '' || parseFloat(formattedValue) >= 0) {
+      handleInputChange("monto", formattedValue)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const isNumber = /[0-9]/.test(e.key)
+    const isDecimal = e.key === '.' && !formData.monto.includes('.')
+    const isAllowedKey = ALLOWED_KEYS.includes(e.key)
+    const isCtrlKey = e.ctrlKey && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())
+    
+    if (!isNumber && !isDecimal && !isAllowedKey && !isCtrlKey) {
+      e.preventDefault()
+    }
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleInputChange("imagen", file)
+    }
+  }
+
+  // Validations
+  const validateForm = (): boolean => {
     if (!formData.nombre.trim()) {
       toast.error("El nombre de la promoción es obligatorio")
-      return
+      return false
     }
     
     if (!formData.monto || parseFloat(formData.monto) <= 0) {
       toast.error("El monto debe ser mayor a 0")
-      return
+      return false
+    }
+    
+    const hoy = getTodayDate()
+    const fechaInicio = normalizeDate(formData.fechaInicio)
+    const fechaFin = normalizeDate(formData.fechaFin)
+    
+    if (fechaInicio < hoy) {
+      toast.error("La fecha de inicio no puede ser menor a la fecha actual")
+      return false
+    }
+    
+    if (fechaFin < fechaInicio) {
+      toast.error("La fecha de fin no puede ser menor a la fecha de inicio")
+      return false
     }
     
     if (!formData.imagen) {
       toast.error("Debes seleccionar una imagen")
-      return
+      return false
     }
+    
+    return true
+  }
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return
     
     setIsSubmitting(true)
     
     try {
-      // Formatear fechas a formato YYYY-MM-DD
-      const formatDate = (date: Date) => {
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const day = String(date.getDate()).padStart(2, '0')
-        return `${year}-${month}-${day}`
-      }
-      
       const promocionData = {
         promNombre: formData.nombre,
         promMonto: parseFloat(formData.monto),
@@ -83,7 +165,7 @@ export function AgregarPromocionModal({ isOpen, onClose, onSave }: AgregarPromoc
         promFechaFin: formatDate(formData.fechaFin),
         promHoraInicio: formData.horaInicio || undefined,
         promHoraFin: formData.horaFin || undefined,
-        promImagen: formData.imagen,
+        promImagen: formData.imagen!, // Validado en validateForm
         promTerminoCondiciones: formData.terminos || undefined,
         promIsActive: formData.estado
       }
@@ -94,21 +176,7 @@ export function AgregarPromocionModal({ isOpen, onClose, onSave }: AgregarPromoc
         toast.success("Promoción creada exitosamente")
         onSave(response)
         onClose()
-        
-        // Limpiar formulario
-        setFormData({
-          nombre: "",
-          monto: "",
-          descripcion: "",
-          fechaInicio: new Date(),
-          fechaFin: new Date(),
-          horaInicio: "11:00",
-          horaFin: "11:00",
-          imagen: null,
-          imagenes: [],
-          terminos: "",
-          estado: true
-        })
+        resetForm()
       } else {
         toast.error("Error al crear la promoción")
       }
@@ -120,22 +188,14 @@ export function AgregarPromocionModal({ isOpen, onClose, onSave }: AgregarPromoc
     }
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      handleInputChange("imagen", file)
-      setFormData(prev => ({
-        ...prev,
-        imagenes: [...prev.imagenes, file]
-      }))
+  const isDateDisabled = (date: Date, isFechaFin: boolean = false): boolean => {
+    const hoy = getTodayDate()
+    if (date < hoy) return true
+    if (isFechaFin) {
+      const fechaInicio = normalizeDate(formData.fechaInicio)
+      return date < fechaInicio
     }
-  }
-
-  const handleRemoveImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      imagenes: prev.imagenes.filter((_, i) => i !== index)
-    }))
+    return false
   }
 
   return (
@@ -144,9 +204,7 @@ export function AgregarPromocionModal({ isOpen, onClose, onSave }: AgregarPromoc
         {/* Header */}
         <div 
           className="flex justify-between items-start px-[30px] pt-[30px] pb-6 flex-shrink-0 bg-{#FEFEFE}"
-          style={{ 
-            boxShadow: '0 4px 10px rgba(219, 8, 110, 0.08)'
-          }}
+          style={HEADER_STYLES}
         >
           <div className="flex-1">
             <h2 className="text-[24px] font-medium text-[#1C1C1C] mb-2">Agregar promoción</h2>
@@ -170,227 +228,201 @@ export function AgregarPromocionModal({ isOpen, onClose, onSave }: AgregarPromoc
         <div className="flex-1 overflow-y-auto px-4 sm:px-[30px] py-4 sm:py-2 flex justify-center">
           <div className="w-full max-w-[484px] h-auto min-h-[400px] pt-8">
             <form onSubmit={handleSubmit} className="space-y-3">
-            {/* Datos de la promoción */}
-            <div className="space-y-3">
-              <h3 className="text-base font-medium text-gray-800">Datos de la promoción</h3>
-              
-              <div className="flex flex-row gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-2">Nombre</label>
-                  <Input
-                    type="text"
-                    placeholder="Ingresa un nombre"
-                    value={formData.nombre}
-                    onChange={(e) => handleInputChange("nombre", e.target.value)}
-                    className="w-full h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                    style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                  />
-                </div>
+              {/* Datos de la promoción */}
+              <div className="space-y-3">
+                <h3 className="text-base font-medium text-gray-800">Datos de la promoción</h3>
                 
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-2">Monto</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">S/</span>
+                <div className="flex flex-row gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Nombre</label>
                     <Input
                       type="text"
-                      placeholder="0.00"
-                      value={formData.monto}
-                      onChange={(e) => handleInputChange("monto", e.target.value)}
-                      className="w-full h-[40px] pl-8 placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                      style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                      placeholder="Ingresa un nombre"
+                      value={formData.nombre}
+                      onChange={(e) => handleInputChange("nombre", e.target.value)}
+                      className="w-full h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
+                      style={INPUT_STYLES}
                     />
                   </div>
+                  
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Monto</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">S/</span>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={formData.monto}
+                        onChange={handleMontoChange}
+                        onKeyDown={handleKeyDown}
+                        className="w-full h-[40px] pl-8 placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
+                        style={INPUT_STYLES}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">Descripción</label>
+                  <Textarea
+                    placeholder="Describe una promoción"
+                    value={formData.descripcion}
+                    onChange={(e) => handleInputChange("descripcion", e.target.value)}
+                    className="w-[484px] h-[95px] resize-none placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
+                    style={INPUT_STYLES}
+                  />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Descripción</label>
-                <Textarea
-                  placeholder="Describe una promoción"
-                  value={formData.descripcion}
-                  onChange={(e) => handleInputChange("descripcion", e.target.value)}
-                  className="w-[484px] h-[95px] resize-none placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                  style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                />
-              </div>
-            </div>
-
-            {/* Fechas y horas */}
-            <div className="space-y-2">    
-              <div className="space-y-3">
-                {/* Primera fila: Fecha de inicio y Fecha de fin */}
+              {/* Fechas y horas */}
+              <div className="space-y-2">
                 <div className="flex gap-3">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">Fecha de inicio</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                                              <Button
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
                           variant="outline"
                           className="w-[230px] h-[40px] justify-between text-left font-normal"
-                          style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                          style={INPUT_STYLES}
                         >
                           {format(formData.fechaInicio, "dd/MM/yyyy", { locale: es })}
                           <FechasIcon />
                         </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.fechaInicio}
-                        onSelect={(date) => date && handleInputChange("fechaInicio", date)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 z-[10000]">
+                        <Calendar
+                          mode="single"
+                          selected={formData.fechaInicio}
+                          onSelect={(date) => date && handleInputChange("fechaInicio", date)}
+                          initialFocus
+                          disabled={(date) => isDateDisabled(date, false)}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-2">Fecha de fin</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-[230px] h-[40px] justify-between text-left font-normal"
-                        style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                      >
-                        {format(formData.fechaFin, "dd/MM/yyyy", { locale: es })}
-                        <FechasIcon />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.fechaFin}
-                        onSelect={(date) => date && handleInputChange("fechaFin", date)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  </div>
-                </div>
-              </div>
-
-              {/* Segunda fila: Hora de inicio y Hora de fin */}
-              <div className="flex gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">Hora de inicio</label>
-                  <div className="relative">
-                    <Input
-                      type="time"
-                      value={formData.horaInicio}
-                      onChange={(e) => handleInputChange("horaInicio", e.target.value)}
-                      className="w-[230px] h-[40px] pr-8"
-                      style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                    />
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <HoraIcon />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">Hora de fin</label>
-                  <div className="relative">
-                    <Input
-                      type="time"
-                      value={formData.horaFin}
-                      onChange={(e) => handleInputChange("horaFin", e.target.value)}
-                      className="w-[230px] h-[40px] pr-8"
-                      style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                    />
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <HoraIcon />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Imagen */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Imagen</label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="file-input"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById('file-input')?.click()}
-                    className="w-[484px] h-[40px] bg-white border border-gray-300 rounded-md text-left px-3 text-[#BBBBBB] font-semibold text-sm hover:border-gray-400 transition-colors cursor-pointer flex items-center justify-between"
-                    style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                  >
-                    <span className="text-[14px] font-semibold">Selecciona una imagen</span>
-                    <Upload className="w-4 h-4 text-gray-400" />
-                  </button>
-                  {/* Tags de imágenes seleccionadas */}
-                  {formData.imagenes && formData.imagenes.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {formData.imagenes.map((imagen, index) => (
-                        <div
-                          key={index}
-                          className="bg-[#6137E5] text-white flex items-center gap-2"
-                          style={{ 
-                            width: '84px', 
-                            height: '24px', 
-                            borderRadius: '12px',
-                            padding: '0 8px'
-                          }}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-[230px] h-[40px] justify-between text-left font-normal"
+                          style={INPUT_STYLES}
                         >
-                          <span className="text-[14px] font-medium truncate">Img.{String(index + 1).padStart(2, '0')}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage(index)}
-                            className="text-white hover:text-gray-200 transition-colors text-[16px]"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
+                          {format(formData.fechaFin, "dd/MM/yyyy", { locale: es })}
+                          <FechasIcon />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 z-[10000]">
+                        <Calendar
+                          mode="single"
+                          selected={formData.fechaFin}
+                          onSelect={(date) => date && handleInputChange("fechaFin", date)}
+                          initialFocus
+                          disabled={(date) => isDateDisabled(date, true)}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Hora de inicio</label>
+                    <div className="relative">
+                      <Input
+                        type="time"
+                        value={formData.horaInicio}
+                        onChange={(e) => handleInputChange("horaInicio", e.target.value)}
+                        className="w-[230px] h-[40px] pr-8"
+                        style={INPUT_STYLES}
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <HoraIcon />
+                      </div>
                     </div>
-                  )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-2">Hora de fin</label>
+                    <div className="relative">
+                      <Input
+                        type="time"
+                        value={formData.horaFin}
+                        onChange={(e) => handleInputChange("horaFin", e.target.value)}
+                        className="w-[230px] h-[40px] pr-8"
+                        style={INPUT_STYLES}
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <HoraIcon />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Términos y condiciones */}
-            <div className="space-y-3">
-              <h3 className="text-base font-medium text-gray-800">Términos y condiciones</h3>
-              <div>
+              {/* Imagen */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">Imagen</label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="file-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('file-input')?.click()}
+                      className="w-[484px] h-[40px] bg-white border border-gray-300 rounded-md text-left px-3 text-[#BBBBBB] font-semibold text-sm hover:border-gray-400 transition-colors cursor-pointer flex items-center justify-between"
+                      style={INPUT_STYLES}
+                    >
+                      <span className="text-[14px] font-semibold">
+                        {formData.imagen ? formData.imagen.name : "Selecciona una imagen"}
+                      </span>
+                      <Upload className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Términos y condiciones */}
+              <div className="space-y-3">
+                <h3 className="text-base font-medium text-gray-800">Términos y condiciones</h3>
                 <Input
                   placeholder="Ingresa términos y condiciones"
                   value={formData.terminos}
                   onChange={(e) => handleInputChange("terminos", e.target.value)}
                   className="w-[484px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                  style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                  style={INPUT_STYLES}
                 />
               </div>
-            </div>
 
-            {/* Estado */}
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-medium text-gray-800">Estado</h3>
-              <div className="flex items-center space-x-3">
-                <Switch
-                  checked={formData.estado}
-                  onCheckedChange={(checked) => handleInputChange("estado", checked)}
-                  className="data-[state=checked]:bg-[#890277]"
-                />
-                <span className="text-sm text-gray-700">
-                  {formData.estado ? "Activo" : "Inactivo"}
-                </span>
+              {/* Estado */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-medium text-gray-800">Estado</h3>
+                <div className="flex items-center space-x-3">
+                  <Switch
+                    checked={formData.estado}
+                    onCheckedChange={(checked) => handleInputChange("estado", checked)}
+                    className="data-[state=checked]:bg-[#890277]"
+                  />
+                  <span className="text-sm text-gray-700">
+                    {formData.estado ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
               </div>
-            </div>
-          </form>
+            </form>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-[30px] px-[30px] pb-6 justify-center pb-[10px]">
+        <div className="flex gap-[30px] px-[30px] pb-6 justify-center">
           <GradientOutlineButton
             onClick={onClose}
             className="w-[138px] h-[40px] text-red-600 border-red-300 hover:bg-red-50"

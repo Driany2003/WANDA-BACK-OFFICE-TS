@@ -8,6 +8,7 @@ import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { Switch } from "@/components/ui/switch"
 import { NotificationToast } from "@/components/ui/notification-toast"
+import { usuarioApi, UsuarioUpdateDTO, UsuarioResponseDTO } from "@/lib/api"
 
 interface EditarUsuarioModalProps {
   isOpen: boolean
@@ -20,15 +21,7 @@ interface EditarUsuarioModalProps {
     authRol: string
     estado: string
   }
-  onSave: (data: {
-    id: string
-    nombre: string
-    apellido: string
-    email: string
-    username: string
-    authRol: string
-    estado: boolean
-  }) => void
+  onSave: (result: UsuarioResponseDTO) => void
 }
 
 export function EditarUsuarioModal({ isOpen, onClose, initialData, onSave }: EditarUsuarioModalProps) {
@@ -46,6 +39,7 @@ export function EditarUsuarioModal({ isOpen, onClose, initialData, onSave }: Edi
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
   const [toastType, setToastType] = useState<"success" | "error">("success")
+  const [isUpdating, setIsUpdating] = useState(false)
 
   // Actualizar formData cuando cambie initialData
   useEffect(() => {
@@ -67,7 +61,7 @@ export function EditarUsuarioModal({ isOpen, onClose, initialData, onSave }: Edi
     }
   }, [initialData, isOpen])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     // Validar que todos los campos estén llenos
@@ -76,16 +70,50 @@ export function EditarUsuarioModal({ isOpen, onClose, initialData, onSave }: Edi
       return
     }
     
-    // Guardar los datos
-    onSave(formData)
-    
-    // Mostrar toast de éxito
-    showToastMessage("success", "Usuario actualizado", "El usuario se ha actualizado exitosamente")
-    
-    // Cerrar el modal después de un breve delay
-    setTimeout(() => {
-      onClose()
-    }, 1500)
+    try {
+      setIsUpdating(true)
+      
+      // Preparar datos para el backend
+      const updateData: UsuarioUpdateDTO = {
+        id: parseInt(formData.id),
+        nombre: formData.nombre,
+        apellido: formData.apellido,
+        correo: formData.email,
+        authUsername: formData.username,
+        authRol: formData.authRol,
+        isActive: formData.estado
+      }
+      
+      // Actualizar usuario en el backend
+      const result = await usuarioApi.update(updateData)
+      
+      // Combinar el resultado de la API con los datos del formulario
+      const completeResult = {
+        ...result,
+        id: result.id || parseInt(formData.id),
+        nombre: result.nombre || formData.nombre,
+        apellido: result.apellido || formData.apellido,
+        correo: result.correo || formData.email,
+        username: result.username || formData.username,
+        authUsername: result.username || formData.username,
+        authRol: result.authRol || formData.authRol,
+        isActive: result.isActive !== undefined ? result.isActive : formData.estado
+      }
+      
+      // Mostrar toast de éxito
+      showToastMessage("success", "Usuario actualizado", "El usuario se ha actualizado exitosamente")
+      
+      // Pasar el resultado completo para evitar SELECT completo
+      setTimeout(() => {
+        onSave(completeResult)
+        onClose()
+      }, 1000)
+    } catch (error) {
+      console.error("Error al actualizar usuario:", error)
+      showToastMessage("error", "Error", "Error al actualizar el usuario")
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -252,9 +280,10 @@ export function EditarUsuarioModal({ isOpen, onClose, initialData, onSave }: Edi
               </GradientOutlineButton>
               <GradientButton
                 type="submit"
-                className="w-[138px] h-[40px]"
+                disabled={isUpdating}
+                className="w-[138px] h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Guardar
+                {isUpdating ? 'Guardando...' : 'Guardar'}
               </GradientButton>
             </div>
           </form>

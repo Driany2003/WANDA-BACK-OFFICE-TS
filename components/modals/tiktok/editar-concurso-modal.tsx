@@ -139,7 +139,7 @@ export function EditarConcursoModal({ isOpen, onClose, onSave, concursoData }: E
                           <FechasIcon />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0 z-[10000]">
                         <CalendarComponent
                           mode="single"
                           selected={formData.fecha || undefined}

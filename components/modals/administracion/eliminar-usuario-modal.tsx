@@ -1,11 +1,9 @@
 "use client"
 
-import { useState } from "react"
 import { X } from "lucide-react"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { AlertIcon } from "@/components/icons/adminitracion-icon"
-import { NotificationToast } from "@/components/ui/notification-toast"
 
 interface EliminarUsuarioModalProps {
   isOpen: boolean
@@ -20,34 +18,13 @@ interface EliminarUsuarioModalProps {
 }
 
 export function EliminarUsuarioModal({ isOpen, onClose, usuario, onConfirm }: EliminarUsuarioModalProps) {
-  // Estados para el toast
-  const [showToast, setShowToast] = useState(false)
-  const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
-  const [toastType, setToastType] = useState<"success" | "error">("success")
-
   if (!isOpen) return null
 
   const handleConfirm = () => {
+    // Cerrar el modal primero
+    onClose()
+    // Luego ejecutar la confirmación
     onConfirm(usuario.id)
-    
-    // Mostrar toast de éxito
-    showToastMessage("success", "Usuario eliminado", "El usuario ha sido eliminado exitosamente")
-    
-    // Cerrar el modal después de un breve delay
-    setTimeout(() => {
-      onClose()
-    }, 1500)
-  }
-
-  const showToastMessage = (type: "success" | "error", title: string, message: string) => {
-    setToastType(type)
-    setToastMessage({ title, message })
-    setShowToast(true)
-    
-    // Ocultar el toast después de 5 segundos
-    setTimeout(() => {
-      setShowToast(false)
-    }, 5000)
   }
 
   return (
@@ -136,17 +113,6 @@ export function EliminarUsuarioModal({ isOpen, onClose, usuario, onConfirm }: El
             </div>
         </div>
       </div>
-
-      {/* Toast notification */}
-      {showToast && (
-        <NotificationToast
-          type={toastType}
-          title={toastMessage.title}
-          message={toastMessage.message}
-          onClose={() => setShowToast(false)}
-          isVisible={showToast}
-        />
-      )}
     </>
   )
 }

@@ -148,18 +148,15 @@ export function AgregarUsuarioModal({ isOpen, onClose, onSave }: AgregarUsuarioM
         isActive: formData.isActive
       }
       
-      console.log('📋 Datos del usuario preparados:', userData)
-      
       // Crear usuario
       const result = await usuarioApi.create(userData)
-      console.log('✅ Usuario creado exitosamente:', result)
       
       // Mostrar toast de éxito
       showToastMessage("success", "Usuario agregado", "El usuario se ha agregado exitosamente")
       
       // Cerrar el modal después de un breve delay
       setTimeout(() => {
-        onSave(formData)
+        onSave(result)
         onClose()
       }, 1000)
       

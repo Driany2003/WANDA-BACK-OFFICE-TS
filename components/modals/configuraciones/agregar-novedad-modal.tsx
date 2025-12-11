@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { X, Plus, Upload } from "lucide-react"
-import { FechasIcon, HoraIcon, LapizIcon, TachoIcon, AlertIcon } from "@/components/icons/configuraciones-icons"
+import { useState, useEffect } from "react"
+import { X, Upload } from "lucide-react"
+import { FechasIcon, HoraIcon, AlertIcon } from "@/components/icons/configuraciones-icons"
 import { Button } from "@/components/ui/button"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
@@ -11,60 +11,200 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { NovedadesCreateDTO, novedadesAPI } from "@/lib/api"
+import { toast } from "sonner"
+
+// Constants
+const INITIAL_FORM_DATA = {
+  noveTitulo: "",
+  noveDescripcion: "",
+  noveFechaInicio: null as Date | null,
+  noveFechaFin: null as Date | null,
+  noveHoraInicio: "",
+  noveHoraFin: "",
+  noveImagen: null as File | null,
+  noveIsActive: true
+}
+
+const VALIDATION_RULES = {
+  TITULO_MAX_LENGTH: 255,
+  DESCRIPCION_MAX_LENGTH: 1000,
+  FILE_INPUT_ID: "file-input-novedad"
+} as const
+
+const INPUT_STYLES = {
+  boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)'
+} as const
+
+const HEADER_STYLES = {
+  boxShadow: '0 4px 10px rgba(219, 8, 110, 0.08)'
+} as const
+
+const ERROR_MESSAGES = {
+  TITULO_REQUIRED: "El título es obligatorio",
+  DESCRIPCION_REQUIRED: "La descripción es obligatoria",
+  FECHA_INICIO_REQUIRED: "La fecha de inicio es obligatoria",
+  FECHA_FIN_REQUIRED: "La fecha de fin es obligatoria",
+  FECHA_FIN_INVALID: "La fecha de fin no puede ser anterior a la fecha de inicio",
+  IMAGEN_REQUIRED: "La imagen es obligatoria",
+  CREATE_ERROR: "Error al crear la novedad. Por favor, intenta nuevamente.",
+  CREATE_SUCCESS: "Novedad creada exitosamente"
+} as const
 
 interface AgregarNovedadModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: any) => void
+  onSave: (data: NovedadesCreateDTO) => void
+}
+
+// Helper functions
+const getCurrentDateTime = () => {
+  const now = new Date()
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  return {
+    date: now,
+    time: `${hours}:${minutes}`
+  }
+}
+
+const formatDate = (date: Date | null): string => {
+  if (!date) return 'Seleccionar fecha'
+  return format(date, "dd/MM/yyyy", { locale: es })
+}
+
+const renameImageFile = (file: File): File => {
+  const extension = file.name.split('.').pop() || 'png'
+  const timestamp = Date.now()
+  const newFileName = `png${timestamp}.${extension}`
+  return new File([file], newFileName, { type: file.type })
 }
 
 export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadModalProps) {
-  const [formData, setFormData] = useState({
-    titulo: "",
-    descripcion: "",
-    fechaInicio: null as Date | null,
-    fechaFin: null as Date | null,
-    horaInicio: "",
-    horaFin: "",
-    imagen: null as File | null,
-    imagenes: [] as File[],
-    estado: false
-  })
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      const currentDateTime = getCurrentDateTime()
+      setFormData(prev => ({
+        ...prev,
+        noveFechaInicio: currentDateTime.date,
+        noveHoraInicio: currentDateTime.time
+      }))
+    } else {
+      setFormData(INITIAL_FORM_DATA)
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
+  // Handlers
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      }
+      
+      // Reset fecha fin if it becomes invalid when fecha inicio changes
+      if (field === "noveFechaInicio" && value && prev.noveFechaFin && value > prev.noveFechaFin) {
+        newData.noveFechaFin = null
+      }
+      
+      return newData
+    })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setFormData(INITIAL_FORM_DATA)
+  }
+
+  const validateForm = (): boolean => {
+    if (!formData.noveTitulo.trim()) {
+      toast.error(ERROR_MESSAGES.TITULO_REQUIRED)
+      return false
+    }
+    if (!formData.noveDescripcion.trim()) {
+      toast.error(ERROR_MESSAGES.DESCRIPCION_REQUIRED)
+      return false
+    }
+    if (!formData.noveFechaInicio) {
+      toast.error(ERROR_MESSAGES.FECHA_INICIO_REQUIRED)
+      return false
+    }
+    if (!formData.noveFechaFin) {
+      toast.error(ERROR_MESSAGES.FECHA_FIN_REQUIRED)
+      return false
+    }
+    if (formData.noveFechaFin < formData.noveFechaInicio) {
+      toast.error(ERROR_MESSAGES.FECHA_FIN_INVALID)
+      return false
+    }
+    if (!formData.noveImagen) {
+      toast.error(ERROR_MESSAGES.IMAGEN_REQUIRED)
+      return false
+    }
+    return true
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSave(formData)
+    
+    if (!validateForm()) {
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      const novedadData: NovedadesCreateDTO = {
+        noveTitulo: formData.noveTitulo.trim(),
+        noveDescripcion: formData.noveDescripcion.trim(),
+        noveFechaInicio: formData.noveFechaInicio!,
+        noveFechaFin: formData.noveFechaFin!,
+        noveHoraInicio: formData.noveHoraInicio || undefined,
+        noveHoraFin: formData.noveHoraFin || undefined,
+        noveImagen: formData.noveImagen!,
+        noveIsActive: formData.noveIsActive
+      }
+      
+      const response = await novedadesAPI.createFromDTO(novedadData)
+      
+      if (response.noveId) {
+        toast.success(ERROR_MESSAGES.CREATE_SUCCESS)
+        onSave(novedadData)
+        resetForm()
+        setTimeout(() => {
+          onClose()
+        }, 1500)
+      } else {
+        toast.error(response.mensaje || ERROR_MESSAGES.CREATE_ERROR)
+      }
+    } catch (error) {
+      console.error("Error creating novedad:", error)
+      const errorMessage = error instanceof Error ? error.message : ERROR_MESSAGES.CREATE_ERROR
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      handleInputChange("imagen", file)
-      setFormData(prev => ({
-        ...prev,
-        imagenes: [...prev.imagenes, file]
-      }))
+      const renamedFile = renameImageFile(file)
+      handleInputChange("noveImagen", renamedFile)
     }
   }
 
-  const handleRemoveImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      imagenes: prev.imagenes.filter((_, i) => i !== index)
-    }))
+  const isDateDisabled = (date: Date): boolean => {
+    return formData.noveFechaInicio ? date < formData.noveFechaInicio : false
   }
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
@@ -72,9 +212,7 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
         {/* Header */}
         <div 
           className="flex justify-between items-start px-4 sm:px-[30px] pt-4 sm:pt-[30px] pb-4 sm:pb-6 flex-shrink-0 bg-[#FEFEFE]"
-          style={{ 
-            boxShadow: '0 4px 10px rgba(219, 8, 110, 0.08)'
-          }}
+          style={HEADER_STYLES}
         >
 
           <div className="flex-1">
@@ -109,11 +247,12 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
                   <label className="block text-xs font-medium text-gray-700 mb-2">Título</label>
                   <Input
                     type="text"
-                    value={formData.titulo}
-                    onChange={(e) => handleInputChange("titulo", e.target.value)}
+                    value={formData.noveTitulo}
+                    onChange={(e) => handleInputChange("noveTitulo", e.target.value)}
                     placeholder="Ingresa un título"
                     className="w-full sm:w-[484px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                    style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                    style={INPUT_STYLES}
+                    maxLength={VALIDATION_RULES.TITULO_MAX_LENGTH}
                   />
                 </div>
 
@@ -121,11 +260,12 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">Descripción</label>
                   <Textarea
-                    value={formData.descripcion}
-                    onChange={(e) => handleInputChange("descripcion", e.target.value)}
+                    value={formData.noveDescripcion}
+                    onChange={(e) => handleInputChange("noveDescripcion", e.target.value)}
                     placeholder="Describe una novedad"
                     className="w-full sm:w-[484px] h-[95px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm resize-none"
-                    style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                    style={INPUT_STYLES}
+                    maxLength={VALIDATION_RULES.DESCRIPCION_MAX_LENGTH}
                   />
                 </div>
 
@@ -140,17 +280,17 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
                           <Button
                             variant="outline"
                             className="w-full sm:w-[230px] h-[40px] justify-between text-left font-normal"
-                            style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                            style={INPUT_STYLES}
                           >
-                            {formData.fechaInicio ? format(formData.fechaInicio, "dd/MM/yyyy", { locale: es }) : 'Seleccionar fecha'}
+                            {formatDate(formData.noveFechaInicio)}
                             <FechasIcon />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
+                        <PopoverContent className="w-auto p-0 z-[10000]">
                           <CalendarComponent
                             mode="single"
-                            selected={formData.fechaInicio || undefined}
-                            onSelect={(date) => date && handleInputChange("fechaInicio", date)}
+                            selected={formData.noveFechaInicio || undefined}
+                            onSelect={(date) => date && handleInputChange("noveFechaInicio", date)}
                             initialFocus
                             locale={es}
                           />
@@ -165,19 +305,20 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
                           <Button
                             variant="outline"
                             className="w-full sm:w-[230px] h-[40px] justify-between text-left font-normal"
-                            style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                            style={INPUT_STYLES}
                           >
-                            {formData.fechaFin ? format(formData.fechaFin, "dd/MM/yyyy", { locale: es }) : 'Seleccionar fecha'}
+                            {formatDate(formData.noveFechaFin)}
                             <FechasIcon />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
+                        <PopoverContent className="w-auto p-0 z-[10000]">
                           <CalendarComponent
                             mode="single"
-                            selected={formData.fechaFin || undefined}
-                            onSelect={(date) => date && handleInputChange("fechaFin", date)}
+                            selected={formData.noveFechaFin || undefined}
+                            onSelect={(date) => date && handleInputChange("noveFechaFin", date)}
                             initialFocus
                             locale={es}
+                            disabled={isDateDisabled}
                           />
                         </PopoverContent>
                       </Popover>
@@ -191,10 +332,10 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
                       <div className="relative">
                         <Input
                           type="time"
-                          value={formData.horaInicio}
-                          onChange={(e) => handleInputChange("horaInicio", e.target.value)}
+                          value={formData.noveHoraInicio}
+                          onChange={(e) => handleInputChange("noveHoraInicio", e.target.value)}
                           className="w-[230px] h-[40px] pr-8"
-                          style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                          style={INPUT_STYLES}
                         />
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                           <HoraIcon />
@@ -207,10 +348,10 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
                       <div className="relative">
                         <Input
                           type="time"
-                          value={formData.horaFin}
-                          onChange={(e) => handleInputChange("horaFin", e.target.value)}
+                          value={formData.noveHoraFin}
+                          onChange={(e) => handleInputChange("noveHoraFin", e.target.value)}
                           className="w-[230px] h-[40px] pr-8"
-                          style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                          style={INPUT_STYLES}
                         />
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                           <HoraIcon />
@@ -229,42 +370,31 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
                       accept="image/*"
                       onChange={handleImageUpload}
                       className="hidden"
-                      id="file-input-novedad"
+                      id={VALIDATION_RULES.FILE_INPUT_ID}
                     />
                     <button
                       type="button"
-                      onClick={() => document.getElementById('file-input-novedad')?.click()}
+                      onClick={() => document.getElementById(VALIDATION_RULES.FILE_INPUT_ID)?.click()}
                       className="w-[484px] h-[40px] bg-white border border-gray-300 rounded-md text-left px-3 text-[#BBBBBB] font-semibold text-sm hover:border-gray-400 transition-colors cursor-pointer flex items-center justify-between"
-                      style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                      style={INPUT_STYLES}
                     >
                       <span className="text-[14px] font-semibold">Selecciona una imagen</span>
                       <Upload className="w-4 h-4 text-gray-400" />
                     </button>
                   </div>
-                  {/* Tags de imágenes seleccionadas */}
-                  {formData.imagenes && formData.imagenes.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {formData.imagenes.map((imagen, index) => (
-                        <div
-                          key={index}
-                          className="bg-[#6137E5] text-white flex items-center gap-2"
-                          style={{ 
-                            width: '84px', 
-                            height: '24px', 
-                            borderRadius: '12px',
-                            padding: '0 8px'
-                          }}
+                  {/* Imagen seleccionada */}
+                  {formData.noveImagen && (
+                    <div className="mt-2">
+                      <div className="bg-[#6137E5] text-white flex items-center gap-2 w-fit px-3 py-1 rounded-full">
+                        <span className="text-[14px] font-medium">{formData.noveImagen.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleInputChange("noveImagen", null)}
+                          className="text-white hover:text-gray-200 transition-colors text-[16px]"
                         >
-                          <span className="text-[14px] font-medium truncate">Img.{String(index + 1).padStart(2, '0')}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage(index)}
-                            className="text-white hover:text-gray-200 transition-colors text-[16px]"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
+                          ×
+                        </button>
+                      </div>
                     </div>
                   )}
                   {/* Texto de validación */}
@@ -279,12 +409,12 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
                   <h3 className="text-base font-medium text-gray-800">Estado</h3>
                   <div className="flex items-center space-x-3">
                     <Switch
-                      checked={formData.estado}
-                      onCheckedChange={(checked) => handleInputChange("estado", checked)}
+                      checked={formData.noveIsActive}
+                      onCheckedChange={(checked) => handleInputChange("noveIsActive", checked)}
                       className="data-[state=checked]:bg-[#890277]"
                     />
                     <span className="text-sm text-gray-700">
-                      {formData.estado ? "Activo" : "Inactivo"}
+                      {formData.noveIsActive ? "Activo" : "Inactivo"}
                     </span>
                   </div>
                 </div>
@@ -298,11 +428,11 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
                     Cancelar
                   </GradientOutlineButton>
                   <GradientButton
-                    type="button"
-                    onClick={() => handleSubmit({} as React.FormEvent)}
-                    className="w-[138px] h-[40px]"
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-[138px] h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Guardar
+                    {isSubmitting ? "Guardando..." : "Guardar"}
                   </GradientButton>
                 </div>
               </div>
