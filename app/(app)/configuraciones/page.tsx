@@ -43,6 +43,8 @@ export default function ConfiguracionesPage() {
   
   // Estado para forzar recarga de listas
   const [refreshKey, setRefreshKey] = useState(0)
+  // Estado para actualizar solo la tabla de parámetros sin recargar toda la página
+  const [parametrosRefreshTrigger, setParametrosRefreshTrigger] = useState(0)
   
   const handleAgregarPromocion = (data: any) => {
     console.log("Promoción agregada exitosamente:", data)
@@ -59,8 +61,9 @@ export default function ConfiguracionesPage() {
   }
   
   const handleAgregarParametro = (data: any) => {
-    console.log("Agregando parámetro:", data)
-    // Aquí iría la lógica para agregar el parámetro
+    console.log("Parámetro agregado exitosamente:", data)
+    // Solo actualizar la tabla de parámetros, no recargar toda la página
+    setParametrosRefreshTrigger(prev => prev + 1)
     setIsAgregarParametroModalOpen(false)
   }
   
@@ -303,9 +306,9 @@ export default function ConfiguracionesPage() {
           </div>
 
           {/* Componentes de Novedades según sub-pestaña activa */}
-          {activeNovedadesSubTab === "activas" && <NovedadesActivas key={`activas-${refreshKey}`} />}
-          {activeNovedadesSubTab === "inactivas" && <NovedadesInactivas key={`inactivas-${refreshKey}`} />}
-          {activeNovedadesSubTab === "borrador" && <NovedadesBorrador key={`borrador-${refreshKey}`} />}
+          {activeNovedadesSubTab === "activas" && <NovedadesActivas key={`activas-${refreshKey}`} onNovedadUpdated={() => setRefreshKey(prev => prev + 1)} />}
+          {activeNovedadesSubTab === "inactivas" && <NovedadesInactivas key={`inactivas-${refreshKey}`} onNovedadUpdated={() => setRefreshKey(prev => prev + 1)} />}
+          {activeNovedadesSubTab === "borrador" && <NovedadesBorrador key={`borrador-${refreshKey}`} onNovedadUpdated={() => setRefreshKey(prev => prev + 1)} />}
         </TabsContent>
 
         {/* Contenido de Autocuidado */}
@@ -315,7 +318,7 @@ export default function ConfiguracionesPage() {
 
         {/* Contenido de Parámetros */}
         <TabsContent value="parametros" className="space-y-6 min-h-[600px]">
-          <Parametros />
+          <Parametros refreshTrigger={parametrosRefreshTrigger} />
         </TabsContent>
 
         {/* Contenido de Sponsors */}

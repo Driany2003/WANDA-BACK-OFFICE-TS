@@ -15,7 +15,11 @@ import { TachoIcon, LapizIcon } from "@/components/icons/configuraciones-icons"
 import { EditarNovedadModal, EliminarNovedadModal } from "@/components/modals/configuraciones"
 import { novedadesAPI, NovedadesListResponse } from "@/lib/api"
 
-export function NovedadesBorrador() {
+interface NovedadesBorradorProps {
+  onNovedadUpdated?: () => void
+}
+
+export function NovedadesBorrador({ onNovedadUpdated }: NovedadesBorradorProps) {
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [selectAll, setSelectAll] = useState(false)
   const [novedades, setNovedades] = useState<NovedadesListResponse[]>([])
@@ -38,7 +42,11 @@ export function NovedadesBorrador() {
       setLoading(true)
       setError(null)
       const data = await novedadesAPI.getBorrador()
-      setNovedades(data)
+      // Filtrar solo las que realmente están en borrador (por si el backend devuelve algo incorrecto)
+      const borradores = data.filter(n => 
+        n.noveEstado?.toLowerCase() === 'borrador'
+      )
+      setNovedades(borradores)
     } catch (error) {
       console.error('Error al cargar novedades borrador:', error)
       setError('Error al cargar las novedades borrador')
@@ -48,42 +56,22 @@ export function NovedadesBorrador() {
   }
 
   const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedItems(novedades.map(item => item.noveId.toString()))
-    } else {
-      setSelectedItems([])
-    }
+    setSelectedItems(checked ? novedades.map(item => item.noveId.toString()) : [])
     setSelectAll(checked)
   }
 
   const handleSelectItem = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedItems(prev => [...prev, id])
-    } else {
-      setSelectedItems(prev => prev.filter(item => item !== id))
-    }
+    setSelectedItems(prev => checked ? [...prev, id] : prev.filter(item => item !== id))
   }
 
-  const handleRefresh = () => {
-    fetchNovedadesBorrador()
-  }
-
-  const handleDeleteSelected = () => {
-    console.log("Eliminando novedades en borrador seleccionadas:", selectedItems)
-  }
-
-  const handleGuardarEdicion = (data: any) => {
-    console.log("Novedad editada exitosamente:", data)
-    // Recargar la lista después de editar
-    fetchNovedadesBorrador()
-    setIsEditarModalOpen(false)
+  const handleGuardarEdicion = () => {
+    onNovedadUpdated?.()
+    setTimeout(fetchNovedadesBorrador, 300)
     setNovedadIdParaEditar(null)
   }
 
-  const handleConfirmarEliminacion = (id: string) => {
-    console.log("Confirmando eliminación de novedad:", id)
+  const handleConfirmarEliminacion = () => {
     setIsEliminarModalOpen(false)
-    // Recargar la lista después de eliminar
     fetchNovedadesBorrador()
   }
 
@@ -98,10 +86,7 @@ export function NovedadesBorrador() {
   const handleEliminarNovedad = (id: string) => {
     const novedad = novedades.find(n => n.noveId.toString() === id)
     if (novedad) {
-      setNovedadSeleccionada({
-        id: novedad.noveId,
-        nombre: novedad.noveTitulo
-      })
+      setNovedadSeleccionada({ id: novedad.noveId, nombre: novedad.noveTitulo })
       setIsEliminarModalOpen(true)
     }
   }
@@ -116,7 +101,7 @@ export function NovedadesBorrador() {
           className="data-[state=checked]:bg-[#777777] data-[state=checked]:border-[#777777]"
         />
         <button
-          onClick={handleRefresh}
+          onClick={fetchNovedadesBorrador}
           className="text-gray-600 hover:text-gray-800 p-2 rounded-md hover:bg-gray-100"
           title="Refrescar"
         >
@@ -124,7 +109,6 @@ export function NovedadesBorrador() {
         </button>
         {selectedItems.length > 0 && (
           <button
-            onClick={handleDeleteSelected}
             className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
           >
             Eliminar seleccionados ({selectedItems.length})

@@ -3,13 +3,13 @@
 import { X } from 'lucide-react'
 import { GradientButton } from '@/components/ui/gradient-button'
 import { GradientOutlineButton } from '@/components/ui/gradient-outline-button'
-import { PaginaEstatica } from '@/types/soporte'
+import { PaginaEstaticaResponse } from '@/lib/api'
 
 interface EliminarPaginaEstaticaModalProps {
   isOpen: boolean
   onClose: () => void
-  pagina: PaginaEstatica | null
-  onConfirm: (pagina: PaginaEstatica) => void
+  pagina: PaginaEstaticaResponse | null
+  onConfirm: (pagina: PaginaEstaticaResponse) => void
 }
 
 export function EliminarPaginaEstaticaModal({
@@ -72,7 +72,7 @@ export function EliminarPaginaEstaticaModal({
                 Estás por eliminar la siguiente página estática:
               </p>
               <p className="text-[18px] font-bold text-[#1C1C1C]">
-                {pagina.nombre}
+                {pagina.pestNombre}
               </p>
               <p className="text-[14px] text-gray-600">
                 Esta acción no se puede deshacer.

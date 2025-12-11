@@ -1,18 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-
-import { Pregunta } from "@/types/soporte"
+import { preguntasFrecuentesAPI, PreguntaCreateDTO, PreguntaResponse } from "@/lib/api"
+import { toast } from "sonner"
 
 interface AgregarPreguntaModalProps {
   isOpen: boolean
   onClose: () => void
-  onAdd: (pregunta: Omit<Pregunta, 'id' | 'fecha'>) => void
+  onAdd: (pregunta: PreguntaResponse) => void
 }
 
 export function AgregarPreguntaModal({ isOpen, onClose, onAdd }: AgregarPreguntaModalProps) {
@@ -20,14 +20,52 @@ export function AgregarPreguntaModal({ isOpen, onClose, onAdd }: AgregarPregunta
     pregunta: "",
     respuesta: ""
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({ pregunta: "", respuesta: "" })
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
-  const handleSubmit = () => {
-    if (formData.pregunta.trim() && formData.respuesta.trim()) {
-      onAdd(formData)
-      setFormData({ pregunta: "", respuesta: "" })
-      onClose()
+  const handleSubmit = async () => {
+    if (!formData.pregunta.trim()) {
+      toast.error("La pregunta es obligatoria")
+      return
+    }
+    if (!formData.respuesta.trim()) {
+      toast.error("La respuesta es obligatoria")
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const preguntaData: PreguntaCreateDTO = {
+        pregPregunta: formData.pregunta.trim(),
+        pregRespuesta: formData.respuesta.trim()
+      }
+
+      const response = await preguntasFrecuentesAPI.createFromDTO(preguntaData)
+
+      if (response.pfreeId) {
+        toast.success("Pregunta creada exitosamente")
+        setFormData({ pregunta: "", respuesta: "" })
+        onClose()
+        // Llamar a onAdd después de cerrar el modal para actualizar la tabla
+        setTimeout(() => {
+          onAdd(response)
+        }, 100)
+      } else {
+        toast.error(response.mensaje || "Error al crear la pregunta")
+      }
+    } catch (error) {
+      console.error("Error creating pregunta:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error al crear la pregunta. Por favor, intenta nuevamente."
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -111,9 +149,10 @@ export function AgregarPreguntaModal({ isOpen, onClose, onAdd }: AgregarPregunta
           <GradientButton
             type="button"
             onClick={handleSubmit}
-            className="w-[138px] h-[40px]"
+            disabled={isSubmitting}
+            className="w-[138px] h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Agregar
+            {isSubmitting ? "Guardando..." : "Agregar"}
           </GradientButton>
         </div>
       </div>

@@ -54,6 +54,7 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadId }: Edita
     imagenes: [] as File[],
     estado: false
   })
+  const [imagenActual, setImagenActual] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [dataLoaded, setDataLoaded] = useState(false)
@@ -65,8 +66,21 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadId }: Edita
       setNovedadIdState(novedadId)
       loadNovedadData(novedadId)
     } else if (!isOpen) {
+      // Resetear el estado cuando se cierra el modal
       setDataLoaded(false)
       setNovedadIdState(null)
+      setImagenActual(null)
+      setFormData({
+        titulo: "",
+        descripcion: "",
+        fechaInicio: null,
+        fechaFin: null,
+        horaInicio: "",
+        horaFin: "",
+        imagen: null,
+        imagenes: [],
+        estado: false
+      })
     }
   }, [isOpen, novedadId])
 
@@ -77,6 +91,30 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadId }: Edita
       console.log('🔍 Cargando novedad con noveId:', id)
       const novedadData = await novedadesAPI.findById(id)
       
+      // Construir la URL completa de la imagen si existe
+      // El backend devuelve la ruta como: "/api/images/novedades/nombre-archivo.jpeg"
+      let imagenUrl: string | null = null
+      if (novedadData.noveImagen) {
+        const imagenPath = novedadData.noveImagen.trim()
+        if (imagenPath.startsWith('http://') || imagenPath.startsWith('https://')) {
+          // URL completa, usar tal cual
+          imagenUrl = imagenPath
+        } else {
+          // Ruta relativa que empieza con /, agregar el dominio
+          imagenUrl = `http://localhost:8080${imagenPath}`
+        }
+      }
+      console.log('🖼️ URL de imagen construida:', imagenUrl, 'desde:', novedadData.noveImagen)
+      
+      // Convertir el estado a booleano: priorizar noveEstado (string) si existe
+      let estadoBooleano = false
+      if (novedadData.noveEstado) {
+        const estadoLower = novedadData.noveEstado.toLowerCase()
+        estadoBooleano = estadoLower === 'activa' || estadoLower === 'activo'
+      } else if (novedadData.noveIsActive !== undefined) {
+        estadoBooleano = novedadData.noveIsActive
+      }
+      
       setFormData({
         titulo: novedadData.noveTitulo || "",
         descripcion: novedadData.noveDescripcion || "",
@@ -86,8 +124,9 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadId }: Edita
         horaFin: parseTime(novedadData.noveHoraFin),
         imagen: null,
         imagenes: [],
-        estado: novedadData.noveIsActive || false
+        estado: estadoBooleano
       })
+      setImagenActual(imagenUrl)
       setDataLoaded(true)
     } catch (error) {
       console.error("Error loading novedad data:", error)
@@ -166,33 +205,41 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadId }: Edita
         noveFechaFin: formData.fechaFin!,
         noveHoraInicio: formData.horaInicio || undefined,
         noveHoraFin: formData.horaFin || undefined,
-        noveImagen: formData.imagen || undefined, // Opcional en update
+        noveImagen: formData.imagen || undefined, // Opcional en update - solo se envía si hay nueva imagen
         noveIsActive: formData.estado, // Mantener para compatibilidad
         noveEstado: estadoString // Enviar como string "Activa" o "Inactiva"
       }
       
       if (!novedadIdState) {
         toast.error("ID de novedad no válido")
+        setIsSubmitting(false)
         return
       }
+      
+      console.log('📤 Actualizando novedad:', {
+        id: novedadIdState,
+        tieneNuevaImagen: !!formData.imagen,
+        tieneImagenActual: !!imagenActual,
+        datos: novedadDataDTO
+      })
       
       const response = await novedadesAPI.updateFromDTO(novedadIdState, novedadDataDTO)
       
       if (response.noveId) {
         toast.success("Novedad actualizada exitosamente")
-        console.log("✅ Novedad actualizada, llamando onSave con:", formData)
-        onSave(formData)
-        setTimeout(() => {
-          onClose()
-        }, 1500)
+        // Notificar al componente padre para que recargue la lista
+        onSave(response)
+        // Cerrar el modal después de notificar
+        onClose()
+        setIsSubmitting(false)
       } else {
         toast.error(response.mensaje || "Error al actualizar la novedad")
+        setIsSubmitting(false)
       }
     } catch (error) {
       console.error("Error updating novedad:", error)
       const errorMessage = error instanceof Error ? error.message : "Error al actualizar la novedad. Por favor, intenta nuevamente."
       toast.error(errorMessage)
-    } finally {
       setIsSubmitting(false)
     }
   }
@@ -205,6 +252,8 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadId }: Edita
         ...prev,
         imagenes: [...prev.imagenes, file]
       }))
+      // Limpiar la imagen actual cuando se selecciona una nueva
+      setImagenActual(null)
     }
   }
 
@@ -385,10 +434,58 @@ export function EditarNovedadModal({ isOpen, onClose, onSave, novedadId }: Edita
                       className="w-[484px] h-[40px] bg-white border border-gray-300 rounded-md text-left px-3 text-[#BBBBBB] font-semibold text-sm hover:border-gray-400 transition-colors cursor-pointer flex items-center justify-between"
                       style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
                     >
-                      <span className="text-[14px] font-semibold">Selecciona una imagen</span>
+                      <span className="text-[14px] font-semibold">
+                        {formData.imagen ? formData.imagen.name : imagenActual ? "Imagen actual (click para cambiar)" : "Selecciona una imagen"}
+                      </span>
                       <Upload className="w-4 h-4 text-gray-400" />
                     </button>
                   </div>
+                  
+                  {/* Mostrar badge de imagen actual si existe y no hay nueva imagen */}
+                  {imagenActual && !formData.imagen && (
+                    <div className="mt-2">
+                      <div className="bg-[#6137E5] text-white flex items-center gap-2 w-fit px-3 py-1 rounded-full">
+                        <span className="text-[14px] font-medium">
+                          {imagenActual.split('/').pop() || 'Imagen actual'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImagenActual(null)
+                            handleInputChange("imagen", null)
+                          }}
+                          className="text-white hover:text-gray-200 transition-colors text-[16px]"
+                          title="Eliminar imagen actual"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Mostrar badge de nueva imagen seleccionada */}
+                  {formData.imagen && (
+                    <div className="mt-2">
+                      <div className="bg-[#6137E5] text-white flex items-center gap-2 w-fit px-3 py-1 rounded-full">
+                        <span className="text-[14px] font-medium">{formData.imagen.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleInputChange("imagen", null)
+                            setFormData(prev => ({
+                              ...prev,
+                              imagenes: []
+                            }))
+                          }}
+                          className="text-white hover:text-gray-200 transition-colors text-[16px]"
+                          title="Eliminar nueva imagen"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Tags de imágenes seleccionadas */}
                   {formData.imagenes && formData.imagenes.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">

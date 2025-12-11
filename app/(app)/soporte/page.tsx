@@ -46,6 +46,8 @@ export default function SoportePage() {
   const [isAgregarNormativaModalOpen, setIsAgregarNormativaModalOpen] = useState(false)
   const [isDateRangeModalOpen, setIsDateRangeModalOpen] = useState(false)
   const [selectedDateRange, setSelectedDateRange] = useState("hoy")
+  const [preguntasRefreshTrigger, setPreguntasRefreshTrigger] = useState(0)
+  const [paginasRefreshTrigger, setPaginasRefreshTrigger] = useState(0)
 
   // Manejar el parámetro tab de la URL
   useEffect(() => {
@@ -65,14 +67,18 @@ export default function SoportePage() {
     // Aquí iría la lógica para enviar el mensaje
   }
 
-  const handleAddPregunta = (data: { pregunta: string; respuesta: string }) => {
-    console.log("Agregando pregunta:", data)
-    // Aquí iría la lógica para agregar la pregunta
+  const handleAddPregunta = (data: any) => {
+    console.log("Pregunta agregada exitosamente:", data)
+    // Solo actualizar la tabla de preguntas, no recargar toda la página
+    setPreguntasRefreshTrigger(prev => prev + 1)
+    setIsAgregarPreguntaModalOpen(false)
   }
 
-  const handleAddPaginaEstatica = (data: { nombre: string; descripcion: string; link: string; imagenes: File[] }) => {
-    console.log("Agregando página estática:", data)
-    // Aquí iría la lógica para agregar la página estática
+  const handleAddPaginaEstatica = (data: any) => {
+    console.log("Página estática agregada exitosamente:", data)
+    // Actualizar la tabla de páginas estáticas, no recargar toda la página
+    setPaginasRefreshTrigger(prev => prev + 1)
+    setIsAgregarPaginaEstaticaModalOpen(false)
   }
 
   const handleAddNormativa = (data: { titulo: string; descripcion: string; archivo?: File; link: string; enviarAlerta: boolean }) => {
@@ -208,12 +214,12 @@ export default function SoportePage() {
 
         {/* Contenido de Preguntas Frecuentes */}
         <TabsContent value="preguntas" className="space-y-6 h-[600px] overflow-y-auto">
-          <PreguntasFrecuentes />
+          <PreguntasFrecuentes refreshTrigger={preguntasRefreshTrigger} />
         </TabsContent>
 
         {/* Contenido de Páginas Estáticas */}
         <TabsContent value="paginas" className="space-y-6 h-[600px] overflow-y-auto">
-          <PaginasEstaticas />
+          <PaginasEstaticas refreshTrigger={paginasRefreshTrigger} />
         </TabsContent>
 
         {/* Contenido de Normativa */}

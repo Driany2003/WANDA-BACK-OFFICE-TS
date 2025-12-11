@@ -6,31 +6,22 @@ import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { AlertIcon } from "@/components/icons/adminitracion-icon"
 import { NotificationToast } from "@/components/ui/notification-toast"
+import { parametrosAPI, ParametroResponse } from "@/lib/api"
 
 interface EliminarParametroModalProps {
   isOpen: boolean
   onClose: () => void
-  parametro: {
-    id: string
-    nombre: string
-  }
-  onConfirm: (id: string) => void
+  parametro: ParametroResponse | null
+  onConfirm: () => void
 }
 
 export function EliminarParametroModal({ isOpen, onClose, parametro, onConfirm }: EliminarParametroModalProps) {
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
   const [toastType, setToastType] = useState<"success" | "error">("success")
+  const [loading, setLoading] = useState(false)
 
-  if (!isOpen) return null
-
-  const handleConfirm = () => {
-    onConfirm(parametro.id)
-    showToastMessage("success", "Parámetro eliminado", "El parámetro ha sido eliminado exitosamente")
-    setTimeout(() => {
-      onClose()
-    }, 1500)
-  }
+  if (!isOpen || !parametro) return null
 
   const showToastMessage = (type: "success" | "error", title: string, message: string) => {
     setToastType(type)
@@ -39,6 +30,28 @@ export function EliminarParametroModal({ isOpen, onClose, parametro, onConfirm }
     setTimeout(() => {
       setShowToast(false)
     }, 5000)
+  }
+
+  const handleConfirm = async () => {
+    if (!parametro.paraId) {
+      showToastMessage("error", "Error", "No se pudo identificar el parámetro a eliminar")
+      return
+    }
+
+    try {
+      setLoading(true)
+      await parametrosAPI.delete(parametro.paraId)
+      showToastMessage("success", "Parámetro eliminado", "El parámetro ha sido eliminado exitosamente")
+      setTimeout(() => {
+        onConfirm()
+        onClose()
+      }, 1000)
+    } catch (error: any) {
+      console.error('Error al eliminar parámetro:', error)
+      showToastMessage("error", "Error al eliminar", error.message || "No se pudo eliminar el parámetro")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -89,7 +102,7 @@ export function EliminarParametroModal({ isOpen, onClose, parametro, onConfirm }
                   Estás por eliminar el siguiente parámetro:
                 </p>
                 <p className="text-[18px] font-bold text-[#1C1C1C]">
-                  {parametro.nombre}
+                  {parametro.paraNombre || '-'}
                 </p>
                 <p className="text-[14px] text-gray-600">
                   ¿Estás seguro de realizar dicha acción?
@@ -114,6 +127,7 @@ export function EliminarParametroModal({ isOpen, onClose, parametro, onConfirm }
             <GradientOutlineButton
               onClick={onClose}
               className="w-[138px] h-[40px] text-purple-600 border-purple-300 hover:bg-purple-50"
+              disabled={loading}
             >
               Cancelar
             </GradientOutlineButton>
@@ -121,8 +135,9 @@ export function EliminarParametroModal({ isOpen, onClose, parametro, onConfirm }
               type="button"
               onClick={handleConfirm}
               className="w-[138px] h-[40px]"
+              disabled={loading}
             >
-              Eliminar
+              {loading ? "Eliminando..." : "Eliminar"}
             </GradientButton>
           </div>
         </div>

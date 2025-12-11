@@ -1,16 +1,18 @@
 "use client"
 
+import { useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { GradientButton } from '@/components/ui/gradient-button'
 import { GradientOutlineButton } from '@/components/ui/gradient-outline-button'
-import { Pregunta } from '@/types/soporte'
+import { preguntasFrecuentesAPI, PreguntaResponse } from '@/lib/api'
+import { NotificationToast } from '@/components/ui/notification-toast'
 
 interface EliminarPreguntaModalProps {
   isOpen: boolean
   onClose: () => void
-  pregunta: Pregunta | null
-  onConfirm: (pregunta: Pregunta) => void
+  pregunta: PreguntaResponse | null
+  onConfirm: () => void
 }
 
 export function EliminarPreguntaModal({
@@ -19,11 +21,41 @@ export function EliminarPreguntaModal({
   pregunta,
   onConfirm
 }: EliminarPreguntaModalProps) {
+  const [loading, setLoading] = useState(false)
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
+  const [toastType, setToastType] = useState<"success" | "error">("success")
+
   if (!isOpen || !pregunta) return null
 
-  const handleConfirm = () => {
-    onConfirm(pregunta)
-    onClose()
+  const showToastMessage = (type: "success" | "error", title: string, message: string) => {
+    setToastType(type)
+    setToastMessage({ title, message })
+    setShowToast(true)
+    setTimeout(() => {
+      setShowToast(false)
+    }, 5000)
+  }
+
+  const handleConfirm = async () => {
+    if (!pregunta.pfreeId) {
+      showToastMessage("error", "Error", "No se pudo identificar la pregunta a eliminar")
+      return
+    }
+
+    try {
+      setLoading(true)
+      await preguntasFrecuentesAPI.delete(pregunta.pfreeId)
+      showToastMessage("success", "Pregunta eliminada", "La pregunta ha sido eliminada exitosamente")
+      // Cerrar el modal inmediatamente y actualizar la tabla
+      onConfirm()
+      onClose()
+    } catch (error: any) {
+      console.error('Error al eliminar pregunta:', error)
+      showToastMessage("error", "Error al eliminar", error.message || "No se pudo eliminar la pregunta")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -73,7 +105,7 @@ export function EliminarPreguntaModal({
                 Estás por eliminar la siguiente pregunta:
               </p>
               <p className="text-[18px] font-bold text-[#1C1C1C]">
-                {pregunta.pregunta}
+                {pregunta.pfreePregunta || '-'}
               </p>
               <p className="text-[14px] text-gray-600">
                 Esta acción no se puede deshacer.
@@ -87,17 +119,30 @@ export function EliminarPreguntaModal({
           <GradientOutlineButton
             onClick={onClose}
             className="w-[138px] h-[40px] text-purple-600 border-purple-300 hover:bg-purple-50"
+            disabled={loading}
           >
             Cancelar
           </GradientOutlineButton>
           <GradientButton
             onClick={handleConfirm}
             className="w-[138px] h-[40px]"
+            disabled={loading}
           >
-            Eliminar
+            {loading ? "Eliminando..." : "Eliminar"}
           </GradientButton>
         </div>
       </div>
+
+      {/* Toast notification */}
+      {showToast && (
+        <NotificationToast
+          type={toastType}
+          title={toastMessage.title}
+          message={toastMessage.message}
+          onClose={() => setShowToast(false)}
+          isVisible={showToast}
+        />
+      )}
     </div>
   )
 }

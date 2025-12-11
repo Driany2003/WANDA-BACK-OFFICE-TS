@@ -7,40 +7,50 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
-
-interface Parametro {
-  id: string
-  nombre: string
-  descripcion: string
-  valor: string
-  estado: string
-  fechaCreacion: string
-  fechaModificacion: string
-}
+import { parametrosAPI, ParametroResponse, ParametroUpdateDTO } from "@/lib/api"
+import { NotificationToast } from "@/components/ui/notification-toast"
 
 interface EditarParametroModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: Parametro) => void
-  parametro: Parametro | null
+  onSave: (data: ParametroResponse) => void
+  parametro: ParametroResponse | null
 }
 
 export function EditarParametroModal({ isOpen, onClose, onSave, parametro }: EditarParametroModalProps) {
-  const [formData, setFormData] = useState<Parametro>({
-    id: "",
-    nombre: "",
-    descripcion: "",
-    valor: "",
-    estado: "Inactivo",
-    fechaCreacion: "",
-    fechaModificacion: ""
+  const [formData, setFormData] = useState({
+    paraNombre: "",
+    paraDescripcion: "",
+    paraValor: "",
+    paraEstado: "Inactivo" as "Activo" | "Inactivo"
   })
+  const [loading, setLoading] = useState(false)
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
+  const [toastType, setToastType] = useState<"success" | "error">("success")
 
   useEffect(() => {
-    if (parametro) {
-      setFormData(parametro)
+    if (parametro && isOpen) {
+      setFormData({
+        paraNombre: parametro.paraNombre || "",
+        paraDescripcion: parametro.paraDescripcion || "",
+        paraValor: parametro.paraValor || "",
+        paraEstado: (parametro.paraEstado === "Activo" || parametro.paraEstado === "Activa") ? "Activo" : "Inactivo"
+      })
     }
-  }, [parametro])
+  }, [parametro, isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({
+        paraNombre: "",
+        paraDescripcion: "",
+        paraValor: "",
+        paraEstado: "Inactivo"
+      })
+      setShowToast(false)
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -51,9 +61,56 @@ export function EditarParametroModal({ isOpen, onClose, onSave, parametro }: Edi
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const showToastMessage = (type: "success" | "error", title: string, message: string) => {
+    setToastType(type)
+    setToastMessage({ title, message })
+    setShowToast(true)
+    setTimeout(() => {
+      setShowToast(false)
+    }, 5000)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSave(formData)
+    
+    if (!parametro?.paraId) {
+      showToastMessage("error", "Error", "No se pudo identificar el parámetro a editar")
+      return
+    }
+
+    // Validaciones
+    if (!formData.paraNombre.trim()) {
+      showToastMessage("error", "Error de validación", "El nombre es obligatorio")
+      return
+    }
+
+    if (!formData.paraValor.trim()) {
+      showToastMessage("error", "Error de validación", "El valor es obligatorio")
+      return
+    }
+
+    try {
+      setLoading(true)
+      const updateData: ParametroUpdateDTO = {
+        paraNombre: formData.paraNombre.trim(),
+        paraValor: formData.paraValor.trim(),
+        paraDescripcion: formData.paraDescripcion.trim() || undefined,
+        paraEstado: formData.paraEstado
+      }
+
+      const result = await parametrosAPI.updateFromDTO(parametro.paraId, updateData)
+      showToastMessage("success", "Parámetro actualizado", "El parámetro ha sido actualizado exitosamente")
+      
+      setTimeout(() => {
+        onSave(result)
+        onClose()
+      }, 1000)
+    } catch (error: any) {
+      console.error('Error al actualizar parámetro:', error)
+      showToastMessage("error", "Error al actualizar", error.message || "No se pudo actualizar el parámetro")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -100,12 +157,13 @@ export function EditarParametroModal({ isOpen, onClose, onSave, parametro }: Edi
                   <Input
                     type="text"
                     placeholder="Ingresa un nombre"
-                    value={formData.nombre}
-                    onChange={(e) => handleInputChange("nombre", e.target.value)}
+                    value={formData.paraNombre}
+                    onChange={(e) => handleInputChange("paraNombre", e.target.value)}
                     className="w-[484px] h-[40px] text-sm font-medium placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
                     style={{
                       boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)'
                     }}
+                    disabled={loading}
                   />
                 </div>
 
@@ -114,12 +172,13 @@ export function EditarParametroModal({ isOpen, onClose, onSave, parametro }: Edi
                   <label className="text-xs font-medium text-[#1C1C1C]">Descripción</label>
                   <Textarea
                     placeholder="Ingresa una descripción"
-                    value={formData.descripcion}
-                    onChange={(e) => handleInputChange("descripcion", e.target.value)}
+                    value={formData.paraDescripcion}
+                    onChange={(e) => handleInputChange("paraDescripcion", e.target.value)}
                     className="w-[484px] h-[95px] text-sm font-medium resize-none placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
                     style={{
                       boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)'
                     }}
+                    disabled={loading}
                   />
                 </div>
 
@@ -129,12 +188,13 @@ export function EditarParametroModal({ isOpen, onClose, onSave, parametro }: Edi
                   <Input
                     type="text"
                     placeholder="Ingresa un valor"
-                    value={formData.valor}
-                    onChange={(e) => handleInputChange("valor", e.target.value)}
+                    value={formData.paraValor}
+                    onChange={(e) => handleInputChange("paraValor", e.target.value)}
                     className="w-[484px] h-[40px] text-sm font-medium placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
                     style={{
                       boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)'
                     }}
+                    disabled={loading}
                   />
                 </div>
 
@@ -143,12 +203,13 @@ export function EditarParametroModal({ isOpen, onClose, onSave, parametro }: Edi
                   <label className="text-xs font-medium text-[#1C1C1C]">Estado</label>
                   <div className="flex items-center gap-2">
                     <Switch
-                      checked={formData.estado === "Activo"}
-                      onCheckedChange={(checked) => handleInputChange("estado", checked ? "Activo" : "Inactivo")}
+                      checked={formData.paraEstado === "Activo"}
+                      onCheckedChange={(checked) => handleInputChange("paraEstado", checked ? "Activo" : "Inactivo")}
                       className="data-[state=checked]:bg-[#A13592]"
+                      disabled={loading}
                     />
                     <span className="text-sm text-gray-600">
-                      {formData.estado}
+                      {formData.paraEstado}
                     </span>
                   </div>
                 </div>
@@ -160,19 +221,32 @@ export function EditarParametroModal({ isOpen, onClose, onSave, parametro }: Edi
               <GradientOutlineButton
                 onClick={onClose}
                 className="w-[138px] h-[40px] text-purple-600 border-purple-300 hover:bg-purple-50"
+                disabled={loading}
               >
                 Cancelar
               </GradientOutlineButton>
               <GradientButton
                 type="submit"
                 className="w-[138px] h-[40px]"
+                disabled={loading}
               >
-                Guardar
+                {loading ? "Guardando..." : "Guardar"}
               </GradientButton>
             </div>
           </form>
         </div>
       </div>
+
+      {/* Toast notification */}
+      {showToast && (
+        <NotificationToast
+          type={toastType}
+          title={toastMessage.title}
+          message={toastMessage.message}
+          onClose={() => setShowToast(false)}
+          isVisible={showToast}
+        />
+      )}
     </div>
   )
 }

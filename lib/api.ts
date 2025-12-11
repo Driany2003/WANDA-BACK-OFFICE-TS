@@ -661,6 +661,7 @@ export interface NovedadesResponse {
   noveHoraFin?: string;
   noveImagen?: string;
   noveIsActive?: boolean;
+  noveEstado?: string; // "Activa", "Inactiva", "Borrador"
   mensaje?: string;
   success?: boolean;
 }
@@ -846,18 +847,16 @@ export const novedadesAPI = {
       formData.append('noveTitulo', novedadData.noveTitulo);
       formData.append('noveDescripcion', novedadData.noveDescripcion);
       
-      // Convertir fechas a Timestamp formato: yyyy-MM-dd HH:mm:ss
-      // Las fechas se envían con hora 00:00:00
-      formData.append('noveFechaInicio', createTimestamp(novedadData.noveFechaInicio));
-      formData.append('noveFechaFin', createTimestamp(novedadData.noveFechaFin));
+      // Convertir fechas a LocalDate formato: yyyy-MM-dd (solo fecha, sin hora) - igual que en create
+      formData.append('noveFechaInicio', createLocalDate(novedadData.noveFechaInicio));
+      formData.append('noveFechaFin', createLocalDate(novedadData.noveFechaFin));
       
-      // Convertir horas a Timestamp si están presentes (combinando fecha + hora)
-      // Formato: yyyy-MM-dd HH:mm:ss
+      // Convertir horas a LocalTime formato: HH:mm (solo hora, sin fecha) si están presentes - igual que en create
       if (novedadData.noveHoraInicio) {
-        formData.append('noveHoraInicio', createTimestamp(novedadData.noveFechaInicio, novedadData.noveHoraInicio));
+        formData.append('noveHoraInicio', createLocalTime(novedadData.noveHoraInicio));
       }
       if (novedadData.noveHoraFin) {
-        formData.append('noveHoraFin', createTimestamp(novedadData.noveFechaFin, novedadData.noveHoraFin));
+        formData.append('noveHoraFin', createLocalTime(novedadData.noveHoraFin));
       }
       
       // Agregar imagen solo si hay una nueva (MultipartFile) - opcional en update
@@ -1103,6 +1102,456 @@ export const sponsorsAPI = {
       return result;
     } catch (error) {
       console.error('Error updating sponsor:', error);
+      throw error;
+    }
+  },
+};
+
+// Parámetros Types
+export interface ParametroCreateDTO {
+  paraNombre: string;
+  paraDescripcion?: string;
+  paraValor: string;
+  paraEstado?: string; // "Activo" o "Inactivo", por defecto "Activo"
+}
+
+export interface ParametroUpdateDTO {
+  paraNombre: string;
+  paraDescripcion?: string;
+  paraValor: string;
+  paraEstado: string; // "Activo" o "Inactivo" (obligatorio en update)
+}
+
+export interface ParametroResponse {
+  paraId?: number;
+  paraNombre?: string;
+  paraDescripcion?: string;
+  paraValor?: string;
+  paraIsActive?: boolean;
+  paraEstado?: string;
+  paraFechaRegistrado?: string;
+  paraFechaModificado?: string;
+  mensaje?: string;
+  success?: boolean;
+}
+
+// Parámetros API functions
+export const parametrosAPI = {
+  // Get all parámetros
+  async getAll(): Promise<ParametroResponse[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/parametros/find-all`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      const result: ParametroResponse[] = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error fetching parámetros:', error);
+      throw error;
+    }
+  },
+
+  // Create parámetro from DTO (usa JSON, no FormData)
+  async createFromDTO(parametroData: ParametroCreateDTO): Promise<ParametroResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/parametros/create-from-dto`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paraNombre: parametroData.paraNombre,
+          paraValor: parametroData.paraValor,
+          paraDescripcion: parametroData.paraDescripcion || '',
+          paraEstado: parametroData.paraEstado || 'Activo'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: ParametroResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error creating parámetro:', error);
+      throw error;
+    }
+  },
+
+  // Update parámetro from DTO (usa JSON, no FormData)
+  async updateFromDTO(id: number, parametroData: ParametroUpdateDTO): Promise<ParametroResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/parametros/update-from-dto/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paraNombre: parametroData.paraNombre,
+          paraValor: parametroData.paraValor,
+          paraDescripcion: parametroData.paraDescripcion || '',
+          paraEstado: parametroData.paraEstado
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: ParametroResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error updating parámetro:', error);
+      throw error;
+    }
+  },
+
+  // Delete parámetro
+  async delete(id: number): Promise<ParametroResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/parametros/delete/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: ParametroResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error deleting parámetro:', error);
+      throw error;
+    }
+  },
+};
+
+// Preguntas Frecuentes Types
+export interface PreguntaCreateDTO {
+  pregPregunta: string;
+  pregRespuesta: string;
+}
+
+export interface PreguntaUpdateDTO {
+  pregPregunta: string;
+  pregRespuesta: string;
+  pfreeEstado?: string; // "Activo" o "Inactivo" (opcional en update)
+}
+
+export interface PreguntaResponse {
+  pfreeId?: number;
+  pfreePregunta?: string;
+  pfreeRespuesta?: string;
+  pfreeEstado?: string;
+  pfreeFechaRegistrado?: string;
+  pfreeFechaModificado?: string;
+  mensaje?: string | null;
+  success?: boolean;
+}
+
+// Preguntas Frecuentes API functions
+export const preguntasFrecuentesAPI = {
+  // Get all preguntas frecuentes
+  async getAll(): Promise<PreguntaResponse[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/preguntas-frecuentes/find-all`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      const result: PreguntaResponse[] = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error fetching preguntas frecuentes:', error);
+      throw error;
+    }
+  },
+
+  // Get pregunta by id
+  async getById(id: number): Promise<PreguntaResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/preguntas-frecuentes/find-by-id/${id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      const result: PreguntaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error fetching pregunta:', error);
+      throw error;
+    }
+  },
+
+  // Create pregunta from DTO (usa JSON, no FormData)
+  async createFromDTO(preguntaData: PreguntaCreateDTO): Promise<PreguntaResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/preguntas-frecuentes/create-from-dto`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pregPregunta: preguntaData.pregPregunta,
+          pregRespuesta: preguntaData.pregRespuesta
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: PreguntaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error creating pregunta:', error);
+      throw error;
+    }
+  },
+
+  // Update pregunta from DTO (usa JSON, no FormData)
+  async updateFromDTO(id: number, preguntaData: PreguntaUpdateDTO): Promise<PreguntaResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/preguntas-frecuentes/update-from-dto/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pregPregunta: preguntaData.pregPregunta,
+          pregRespuesta: preguntaData.pregRespuesta,
+          ...(preguntaData.pfreeEstado && { pfreeEstado: preguntaData.pfreeEstado })
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: PreguntaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error updating pregunta:', error);
+      throw error;
+    }
+  },
+
+  // Delete pregunta
+  async delete(id: number): Promise<PreguntaResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/preguntas-frecuentes/delete/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: PreguntaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error deleting pregunta:', error);
+      throw error;
+    }
+  },
+};
+
+// Páginas Estáticas Types
+export interface PaginaEstaticaCreateDTO {
+  pestNombre: string;
+  pestDescripcion: string;
+  pestLink: string;
+  pestImagenes: File[]; // Array de archivos de imagen
+}
+
+export interface PaginaEstaticaUpdateDTO {
+  pestNombre: string;
+  pestDescripcion: string;
+  pestLink: string;
+  pestImagenes?: File[]; // Array de archivos de imagen (opcional para actualización)
+}
+
+export interface PaginaEstaticaResponse {
+  pestId?: number;
+  pestNombre?: string;
+  pestDescripcion?: string;
+  pestLink?: string;
+  pestImagenes?: string[]; // Array de URLs de imágenes
+  pestFechaRegistrado?: string;
+  pestFechaModificado?: string;
+  mensaje?: string | null;
+  success?: boolean;
+}
+
+// Páginas Estáticas API functions
+export const paginasEstaticasAPI = {
+  // Get all páginas estáticas
+  async getAll(): Promise<PaginaEstaticaResponse[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/paginas-estaticas/find-all`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      const result: PaginaEstaticaResponse[] = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error fetching páginas estáticas:', error);
+      throw error;
+    }
+  },
+
+  // Get página estática by id
+  async getById(id: number): Promise<PaginaEstaticaResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/paginas-estaticas/find-by-id/${id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      const result: PaginaEstaticaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error fetching página estática:', error);
+      throw error;
+    }
+  },
+
+  // Create página estática from DTO (usa FormData para múltiples imágenes)
+  async createFromDTO(paginaData: PaginaEstaticaCreateDTO): Promise<PaginaEstaticaResponse> {
+    try {
+      // Crear FormData para enviar archivos (necesario para MultipartFile con @ModelAttribute)
+      const formData = new FormData();
+      
+      // Agregar campos de texto
+      formData.append('pestNombre', paginaData.pestNombre);
+      formData.append('pestDescripcion', paginaData.pestDescripcion);
+      formData.append('pestLink', paginaData.pestLink);
+      
+      // Agregar cada imagen al FormData
+      // El backend espera un array de MultipartFile, así que agregamos cada imagen con el mismo nombre
+      paginaData.pestImagenes.forEach((imagen) => {
+        formData.append('pestImagenes', imagen);
+      });
+
+      const response = await fetch(`${API_BASE_URL}/paginas-estaticas/create-from-dto`, {
+        method: 'POST',
+        body: formData, // FormData will set the correct Content-Type header (multipart/form-data)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: PaginaEstaticaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error creating página estática:', error);
+      throw error;
+    }
+  },
+
+  // Update página estática from DTO (usa FormData para múltiples imágenes)
+  async updateFromDTO(id: number, paginaData: PaginaEstaticaUpdateDTO): Promise<PaginaEstaticaResponse> {
+    try {
+      // Crear FormData para enviar archivos (necesario para MultipartFile con @ModelAttribute)
+      const formData = new FormData();
+      
+      // Agregar campos de texto
+      formData.append('pestNombre', paginaData.pestNombre);
+      formData.append('pestDescripcion', paginaData.pestDescripcion);
+      formData.append('pestLink', paginaData.pestLink);
+      
+      // Agregar imágenes si están presentes
+      if (paginaData.pestImagenes && paginaData.pestImagenes.length > 0) {
+        paginaData.pestImagenes.forEach((imagen) => {
+          formData.append('pestImagenes', imagen);
+        });
+      }
+
+      const response = await fetch(`${API_BASE_URL}/paginas-estaticas/update-from-dto/${id}`, {
+        method: 'PUT',
+        body: formData, // FormData will set the correct Content-Type header (multipart/form-data)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: PaginaEstaticaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error updating página estática:', error);
+      throw error;
+    }
+  },
+
+  // Delete página estática
+  async delete(id: number): Promise<PaginaEstaticaResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/paginas-estaticas/delete/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: PaginaEstaticaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error deleting página estática:', error);
       throw error;
     }
   },

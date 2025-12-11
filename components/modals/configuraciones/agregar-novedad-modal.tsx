@@ -13,7 +13,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { NovedadesCreateDTO, novedadesAPI } from "@/lib/api"
+import { NovedadesCreateDTO, novedadesAPI, NovedadesResponse } from "@/lib/api"
 import { toast } from "sonner"
 
 // Constants
@@ -56,7 +56,7 @@ const ERROR_MESSAGES = {
 interface AgregarNovedadModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: NovedadesCreateDTO) => void
+  onSave: (data: NovedadesResponse) => void
 }
 
 // Helper functions
@@ -176,19 +176,18 @@ export function AgregarNovedadModal({ isOpen, onClose, onSave }: AgregarNovedadM
       
       if (response.noveId) {
         toast.success(ERROR_MESSAGES.CREATE_SUCCESS)
-        onSave(novedadData)
-        resetForm()
-        setTimeout(() => {
-          onClose()
-        }, 1500)
+        // Notificar al componente padre para que recargue las listas
+        onSave(response)
+        // Cerrar el modal después de notificar
+        onClose()
       } else {
         toast.error(response.mensaje || ERROR_MESSAGES.CREATE_ERROR)
+        setIsSubmitting(false)
       }
     } catch (error) {
       console.error("Error creating novedad:", error)
       const errorMessage = error instanceof Error ? error.message : ERROR_MESSAGES.CREATE_ERROR
       toast.error(errorMessage)
-    } finally {
       setIsSubmitting(false)
     }
   }

@@ -6,13 +6,14 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { GradientButton } from '@/components/ui/gradient-button'
 import { GradientOutlineButton } from '@/components/ui/gradient-outline-button'
-import { Pregunta } from '@/types/soporte'
+import { preguntasFrecuentesAPI, PreguntaResponse, PreguntaUpdateDTO } from '@/lib/api'
+import { NotificationToast } from '@/components/ui/notification-toast'
 
 interface EditarPreguntaModalProps {
   isOpen: boolean
   onClose: () => void
-  pregunta: Pregunta | null
-  onSave: (pregunta: Pregunta) => void
+  pregunta: PreguntaResponse | null
+  onSave: () => void
 }
 
 export function EditarPreguntaModal({
@@ -25,24 +26,96 @@ export function EditarPreguntaModal({
     pregunta: '',
     respuesta: ''
   })
+  const [loading, setLoading] = useState(false)
+  const [preguntaCompleta, setPreguntaCompleta] = useState<PreguntaResponse | null>(null)
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
+  const [toastType, setToastType] = useState<"success" | "error">("success")
+
+  // Cargar datos completos de la pregunta cuando se abre el modal (en segundo plano)
+  useEffect(() => {
+    const fetchPreguntaCompleta = async () => {
+      if (pregunta?.pfreeId && isOpen) {
+        try {
+          // Primero mostrar los datos que ya tenemos del listado
+          setFormData({
+            pregunta: pregunta.pfreePregunta || '',
+            respuesta: pregunta.pfreeRespuesta || ''
+          })
+          
+          // Luego cargar los datos actualizados en segundo plano
+          const data = await preguntasFrecuentesAPI.getById(pregunta.pfreeId)
+          setPreguntaCompleta(data)
+          // Actualizar el formulario con los datos más recientes
+          setFormData({
+            pregunta: data.pfreePregunta || '',
+            respuesta: data.pfreeRespuesta || ''
+          })
+        } catch (error) {
+          console.error('Error al cargar pregunta:', error)
+          // Si falla, mantener los datos que ya tenemos del listado
+        }
+      }
+    }
+
+    fetchPreguntaCompleta()
+  }, [pregunta?.pfreeId, isOpen])
 
   useEffect(() => {
-    if (pregunta) {
-      setFormData({
-        pregunta: pregunta.pregunta,
-        respuesta: pregunta.respuesta
-      })
+    if (!isOpen) {
+      setFormData({ pregunta: '', respuesta: '' })
+      setPreguntaCompleta(null)
+      setShowToast(false)
     }
-  }, [pregunta])
+  }, [isOpen])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const showToastMessage = (type: "success" | "error", title: string, message: string) => {
+    setToastType(type)
+    setToastMessage({ title, message })
+    setShowToast(true)
+    setTimeout(() => {
+      setShowToast(false)
+    }, 5000)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (pregunta) {
-      onSave({
-        ...pregunta,
-        ...formData
-      })
+    
+    const preguntaId = preguntaCompleta?.pfreeId || pregunta?.pfreeId
+    
+    if (!preguntaId) {
+      showToastMessage("error", "Error", "No se pudo identificar la pregunta a editar")
+      return
+    }
+
+    if (!formData.pregunta.trim()) {
+      showToastMessage("error", "Error de validación", "La pregunta es obligatoria")
+      return
+    }
+
+    if (!formData.respuesta.trim()) {
+      showToastMessage("error", "Error de validación", "La respuesta es obligatoria")
+      return
+    }
+
+    try {
+      setLoading(true)
+      const updateData: PreguntaUpdateDTO = {
+        pregPregunta: formData.pregunta.trim(),
+        pregRespuesta: formData.respuesta.trim()
+      }
+
+      const result = await preguntasFrecuentesAPI.updateFromDTO(preguntaId, updateData)
+      showToastMessage("success", "Pregunta actualizada", "La pregunta ha sido actualizada exitosamente")
+      
+      // Cerrar el modal inmediatamente y actualizar la tabla
+      onSave()
       onClose()
+    } catch (error: any) {
+      console.error('Error al actualizar pregunta:', error)
+      showToastMessage("error", "Error al actualizar", error.message || "No se pudo actualizar la pregunta")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -51,6 +124,11 @@ export function EditarPreguntaModal({
       ...prev,
       [field]: value
     }))
+  }
+
+  const handleButtonSubmit = () => {
+    const formEvent = new Event('submit') as unknown as React.FormEvent<HTMLFormElement>
+    handleSubmit(formEvent)
   }
 
   if (!isOpen || !pregunta) return null
@@ -79,6 +157,7 @@ export function EditarPreguntaModal({
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
+            disabled={loading}
           >
             <X className="w-6 h-6" />
           </button>
@@ -102,6 +181,7 @@ export function EditarPreguntaModal({
                     onChange={(e) => handleInputChange('pregunta', e.target.value)}
                     className="w-full sm:w-[484px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
                     style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                    disabled={loading}
                   />
                 </div>
 
@@ -114,6 +194,7 @@ export function EditarPreguntaModal({
                     onChange={(e) => handleInputChange('respuesta', e.target.value)}
                     className="w-full sm:w-[484px] h-[95px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm resize-none"
                     style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -126,18 +207,31 @@ export function EditarPreguntaModal({
           <GradientOutlineButton
             onClick={onClose}
             className="w-[138px] h-[40px] text-purple-600 border-purple-300 hover:bg-purple-50"
+            disabled={loading}
           >
             Cancelar
           </GradientOutlineButton>
           <GradientButton
             type="button"
-            onClick={() => handleSubmit({} as React.FormEvent)}
+            onClick={handleButtonSubmit}
             className="w-[138px] h-[40px]"
+            disabled={loading}
           >
-            Guardar
+            {loading ? "Guardando..." : "Guardar"}
           </GradientButton>
         </div>
       </div>
+
+      {/* Toast notification */}
+      {showToast && (
+        <NotificationToast
+          type={toastType}
+          title={toastMessage.title}
+          message={toastMessage.message}
+          onClose={() => setShowToast(false)}
+          isVisible={showToast}
+        />
+      )}
     </div>
   )
 }

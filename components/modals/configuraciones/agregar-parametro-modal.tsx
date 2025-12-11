@@ -1,17 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
+import { parametrosAPI, ParametroCreateDTO, ParametroResponse } from "@/lib/api"
+import { toast } from "sonner"
 
 interface AgregarParametroModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: any) => void
+  onSave: (data: ParametroResponse) => void
 }
 
 export function AgregarParametroModal({ isOpen, onClose, onSave }: AgregarParametroModalProps) {
@@ -19,8 +21,15 @@ export function AgregarParametroModal({ isOpen, onClose, onSave }: AgregarParame
     nombre: "",
     descripcion: "",
     valor: "",
-    estado: false
+    estado: true // Por defecto Activo según el backend
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({ nombre: "", descripcion: "", valor: "", estado: true })
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -31,9 +40,51 @@ export function AgregarParametroModal({ isOpen, onClose, onSave }: AgregarParame
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateForm = (): boolean => {
+    if (!formData.nombre.trim()) {
+      toast.error("El nombre es obligatorio")
+      return false
+    }
+    if (!formData.valor.trim()) {
+      toast.error("El valor es obligatorio")
+      return false
+    }
+    return true
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSave(formData)
+    
+    if (!validateForm()) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const parametroData: ParametroCreateDTO = {
+        paraNombre: formData.nombre.trim(),
+        paraDescripcion: formData.descripcion.trim() || undefined,
+        paraValor: formData.valor.trim(),
+        paraEstado: formData.estado ? 'Activo' : 'Inactivo'
+      }
+
+      const response = await parametrosAPI.createFromDTO(parametroData)
+
+      if (response.paraId) {
+        toast.success("Parámetro creado exitosamente")
+        onSave(response)
+        onClose()
+      } else {
+        toast.error(response.mensaje || "Error al crear el parámetro")
+      }
+    } catch (error) {
+      console.error("Error creating parámetro:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error al crear el parámetro. Por favor, intenta nuevamente."
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -145,9 +196,10 @@ export function AgregarParametroModal({ isOpen, onClose, onSave }: AgregarParame
               </GradientOutlineButton>
               <GradientButton
                 type="submit"
-                className="w-[138px] h-[40px]"
+                disabled={isSubmitting}
+                className="w-[138px] h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Agregar
+                {isSubmitting ? "Guardando..." : "Agregar"}
               </GradientButton>
             </div>
           </form>

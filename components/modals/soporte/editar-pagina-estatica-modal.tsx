@@ -1,19 +1,20 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { X, Upload } from 'lucide-react'
+import { X, Upload, RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { GradientButton } from '@/components/ui/gradient-button'
 import { GradientOutlineButton } from '@/components/ui/gradient-outline-button'
 import { AlertIcon } from '@/components/icons/soporte-icons'
-import { PaginaEstatica } from '@/types/soporte'
+import { paginasEstaticasAPI, PaginaEstaticaResponse, PaginaEstaticaUpdateDTO } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
 
 interface EditarPaginaEstaticaModalProps {
   isOpen: boolean
   onClose: () => void
-  pagina: PaginaEstatica | null
-  onSave: (pagina: PaginaEstatica) => void
+  pagina: PaginaEstaticaResponse | null
+  onSave: (pagina: PaginaEstaticaResponse) => void
 }
 
 export function EditarPaginaEstaticaModal({
@@ -22,32 +23,126 @@ export function EditarPaginaEstaticaModal({
   pagina,
   onSave
 }: EditarPaginaEstaticaModalProps) {
+  const { toast } = useToast()
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
     link: '',
     imagenes: [] as File[]
   })
+  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  const [paginaCompleta, setPaginaCompleta] = useState<PaginaEstaticaResponse | null>(null)
+  const [imagenesExistentes, setImagenesExistentes] = useState<string[]>([])
+
+  // Cargar datos completos de la página cuando se abre el modal
+  useEffect(() => {
+    const fetchPaginaCompleta = async () => {
+      if (pagina?.pestId && isOpen) {
+        try {
+          setIsLoadingData(true)
+          // Cargar los datos actualizados
+          const data = await paginasEstaticasAPI.getById(pagina.pestId)
+          setPaginaCompleta(data)
+          // Guardar las imágenes existentes
+          setImagenesExistentes(data.pestImagenes || [])
+          // Actualizar el formulario con los datos más recientes
+          setFormData({
+            nombre: data.pestNombre || '',
+            descripcion: data.pestDescripcion || '',
+            link: data.pestLink || '',
+            imagenes: []
+          })
+        } catch (error) {
+          console.error('Error al cargar página estática:', error)
+          // Si falla, usar los datos que ya tenemos del listado
+          setFormData({
+            nombre: pagina.pestNombre || '',
+            descripcion: pagina.pestDescripcion || '',
+            link: pagina.pestLink || '',
+            imagenes: []
+          })
+          setImagenesExistentes([])
+        } finally {
+          setIsLoadingData(false)
+        }
+      }
+    }
+
+    fetchPaginaCompleta()
+  }, [pagina?.pestId, isOpen])
 
   useEffect(() => {
-    if (pagina) {
-      setFormData({
-        nombre: pagina.nombre,
-        descripcion: pagina.descripcion,
-        link: pagina.link,
-        imagenes: []
-      })
+    if (!isOpen) {
+      setFormData({ nombre: '', descripcion: '', link: '', imagenes: [] })
+      setPaginaCompleta(null)
+      setImagenesExistentes([])
+      setIsLoadingData(false)
     }
-  }, [pagina])
+  }, [isOpen])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (pagina) {
-      onSave({
-        ...pagina,
-        ...formData
+    
+    const paginaId = paginaCompleta?.pestId || pagina?.pestId
+    
+    if (!paginaId) {
+      toast({
+        title: "Error",
+        description: "No se pudo identificar la página a editar",
+        variant: "destructive",
       })
+      return
+    }
+
+    if (!formData.nombre.trim()) {
+      toast({
+        title: "Error",
+        description: "El nombre es requerido",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!formData.descripcion.trim()) {
+      toast({
+        title: "Error",
+        description: "La descripción es requerida",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!formData.link.trim()) {
+      toast({
+        title: "Error",
+        description: "El link es requerido",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      const updateData: PaginaEstaticaUpdateDTO = {
+        pestNombre: formData.nombre.trim(),
+        pestDescripcion: formData.descripcion.trim(),
+        pestLink: formData.link.trim(),
+        pestImagenes: formData.imagenes.length > 0 ? formData.imagenes : undefined
+      }
+
+      const result = await paginasEstaticasAPI.updateFromDTO(paginaId, updateData)
+      onSave(result)
       onClose()
+    } catch (error: any) {
+      console.error('Error al actualizar página estática:', error)
+      toast({
+        title: "Error",
+        description: error.message || "Error al actualizar la página estática",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -75,7 +170,27 @@ export function EditarPaginaEstaticaModal({
     }))
   }
 
-  if (!isOpen || !pagina) return null
+  const removeImagenExistente = (index: number) => {
+    setImagenesExistentes(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const getImageName = (imageUrl: string): string => {
+    // Extraer el nombre del archivo de la URL
+    const parts = imageUrl.split('/')
+    const fileName = parts[parts.length - 1]
+    // Si tiene extensión, mostrar solo el nombre sin extensión (opcional)
+    return fileName || 'Imagen'
+  }
+
+  const handleButtonSubmit = () => {
+    const syntheticEvent = {
+      preventDefault: () => {}
+    } as React.FormEvent
+    handleSubmit(syntheticEvent)
+  }
+
+  // No mostrar el modal hasta que los datos estén cargados
+  if (!isOpen || !pagina || isLoadingData) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -174,25 +289,55 @@ export function EditarPaginaEstaticaModal({
                         <span className="text-[14px] font-semibold">Selecciona una imagen</span>
                         <Upload className="w-4 h-4 text-gray-400" />
                       </button>
-                      {/* Tags de imágenes seleccionadas */}
-                      {formData.imagenes && formData.imagenes.length > 0 && (
+                      {/* Tags de imágenes existentes */}
+                      {imagenesExistentes.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
-                          {formData.imagenes.map((imagen, index) => (
+                          {imagenesExistentes.map((imagenUrl, index) => (
                             <div
-                              key={index}
+                              key={`existente-${index}`}
                               className="bg-[#6137E5] text-white flex items-center gap-2"
                               style={{ 
-                                width: '84px', 
+                                minWidth: '84px', 
                                 height: '24px', 
                                 borderRadius: '12px',
                                 padding: '0 8px'
                               }}
                             >
-                              <span className="text-[14px] font-medium truncate">Img.{String(index + 1).padStart(2, '0')}</span>
+                              <span className="text-[14px] font-medium truncate max-w-[60px]">
+                                {getImageName(imagenUrl)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeImagenExistente(index)}
+                                className="text-white hover:text-gray-200 transition-colors text-[16px] flex-shrink-0"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Tags de imágenes nuevas seleccionadas */}
+                      {formData.imagenes && formData.imagenes.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {formData.imagenes.map((imagen, index) => (
+                            <div
+                              key={`nueva-${index}`}
+                              className="bg-[#6137E5] text-white flex items-center gap-2"
+                              style={{ 
+                                minWidth: '84px', 
+                                height: '24px', 
+                                borderRadius: '12px',
+                                padding: '0 8px'
+                              }}
+                            >
+                              <span className="text-[14px] font-medium truncate max-w-[60px]">
+                                {imagen.name || `Img.${String(index + 1).padStart(2, '0')}`}
+                              </span>
                               <button
                                 type="button"
                                 onClick={() => removeImage(index)}
-                                className="text-white hover:text-gray-200 transition-colors text-[16px]"
+                                className="text-white hover:text-gray-200 transition-colors text-[16px] flex-shrink-0"
                               >
                                 ×
                               </button>
@@ -224,10 +369,11 @@ export function EditarPaginaEstaticaModal({
           </GradientOutlineButton>
           <GradientButton
             type="button"
-            onClick={() => handleSubmit({} as React.FormEvent)}
+            onClick={handleButtonSubmit}
             className="w-[138px] h-[40px]"
+            disabled={isLoading}
           >
-            Guardar
+            {isLoading ? "Guardando..." : "Guardar"}
           </GradientButton>
         </div>
       </div>
