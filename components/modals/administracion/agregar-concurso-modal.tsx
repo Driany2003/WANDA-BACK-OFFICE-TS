@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 import { anfitrionApi, AnfitrionDTO, concursoApi, ConcursoCreateDTO } from "@/lib/api"
 import { ConcursoImageUpload } from "../../shared/image-upload"
+import { HoraIcon } from "@/components/icons/configuraciones-icons"
 
 interface AgregarConcursoModalProps {
   isOpen: boolean
@@ -50,6 +51,7 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
   const [formData, setFormData] = useState({
     nombreConcurso: "",
     fecha: new Date(),
+    horaInicio: "",
     usuaId: 0,
     nombreAnfitrion: "",
     wcNecesarias: 0,
@@ -62,6 +64,7 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
       setFormData({
         nombreConcurso: "",
         fecha: new Date(),
+        horaInicio: "",
         usuaId: 0,
         nombreAnfitrion: "",
         wcNecesarias: 0,
@@ -80,7 +83,6 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
         try {
           setLoadingAnfitriones(true)
           const data = await anfitrionApi.getActiveAnfitriones()
-          console.log("🔍 Anfitriones cargados:", data)
           setAnfitriones(data)
         } catch (error) {
           console.error('Error loading anfitriones:', error)
@@ -162,25 +164,20 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
     try {
       setIsUploading(true)
       
-      // Preparar datos del concurso según la estructura requerida
       const concursoData: ConcursoCreateDTO = {
         concNombre: formData.nombreConcurso,
-        concFechaPropuesta: formData.fecha.toISOString(), // Formato ISO 8601 para Timestamp
+        concFechaPropuesta: `${format(formData.fecha, "yyyy-MM-dd")} 00:00:00`,
+        concHora: formData.horaInicio || undefined,
         usuaId: formData.usuaId,
         concWc: formData.wcNecesarias,
         concIsActive: formData.estado
       }
       
-      console.log('📋 Datos del concurso preparados:', concursoData)
-      console.log('🔍 Debug concIsActive:', { valor: concursoData.concIsActive, tipo: typeof concursoData.concIsActive })
-      
-      // Crear concurso - siempre requiere imagen
-      if (selectedImageFile) {
-        const result = await concursoApi.createWithImage(concursoData, selectedImageFile)
-        console.log('✅ Concurso creado con imagen:', result)
-      } else {
+      if (!selectedImageFile) {
         throw new Error('La imagen del concurso es obligatoria')
       }
+      
+      await concursoApi.createWithImage(concursoData, selectedImageFile)
       
       // Mostrar toast de éxito
       showToastMessage("success", "Concurso agregado", "El concurso se ha agregado exitosamente")
@@ -223,11 +220,6 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
       }))
     }
     
-    if (file) {
-      console.log('📁 Archivo de imagen seleccionado:', file.name)
-    } else {
-      console.log('🗑️ Imagen eliminada')
-    }
   }
 
 
@@ -271,26 +263,27 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
                 </h3>
                 
                 <div className="space-y-6 mt-4">
-                  {/* Nombre del concurso y Fecha - En la misma fila */}
+                  {/* Nombre del concurso */}
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#777777] mb-2">
+                      Nombre del concurso
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Nombre"
+                      value={formData.nombreConcurso}
+                      onChange={(e) => handleInputChange("nombreConcurso", e.target.value)}
+                      className={`w-full sm:w-[484px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm ${validationErrors.nombreConcurso ? 'border-red-500' : ''}`}
+                      style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                      required
+                    />
+                    {validationErrors.nombreConcurso && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.nombreConcurso}</p>
+                    )}
+                  </div>
+
+                  {/* Fecha y Hora de inicio - En la misma fila */}
                   <div className="flex gap-4">
-                    <div>
-                      <label className="block text-[12px] font-medium text-[#777777] mb-2">
-                        Nombre del concurso
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Nombre"
-                        value={formData.nombreConcurso}
-                        onChange={(e) => handleInputChange("nombreConcurso", e.target.value)}
-                        className={`w-[230px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm ${validationErrors.nombreConcurso ? 'border-red-500' : ''}`}
-                        style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                        required
-                      />
-                      {validationErrors.nombreConcurso && (
-                        <p className="text-red-500 text-xs mt-1">{validationErrors.nombreConcurso}</p>
-                      )}
-                    </div>
-                    
                     <div>
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
                         Fecha
@@ -322,6 +315,24 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
                           />
                         </PopoverContent>
                       </Popover>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-[12px] font-medium text-[#777777] mb-2">
+                        Hora de inicio
+                      </label>
+                      <div className="relative">
+                        <Input
+                          type="time"
+                          value={formData.horaInicio}
+                          onChange={(e) => setFormData(prev => ({ ...prev, horaInicio: e.target.value }))}
+                          className="w-[230px] h-[40px] pr-8 placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
+                          style={{ boxShadow: '0 4px 20px rgba(219,8,110,0.08)' }}
+                        />
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <HoraIcon />
+                        </div>
+                      </div>
                     </div>
                   </div>
 

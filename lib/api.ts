@@ -1,6 +1,69 @@
 // API service functions for the application
 
+import { getAuthHeaders, saveTokens, saveUserData, clearAuth, LoginResponse } from './auth'
+
 const API_BASE_URL = 'http://localhost:8080/api';
+
+// Wrapper de fetch que siempre incluye credentials para CORS
+const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  return fetch(url, {
+    ...options,
+    credentials: 'include', // Incluir credenciales para CORS (allowCredentials: true)
+  })
+}
+
+// Auth API functions
+export const authApi = {
+  // Login backoffice
+  async loginBackoffice(correo: string, password: string): Promise<LoginResponse> {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/auth/login-backoffice`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ correo, password }),
+      })
+
+      const data = await response.json()
+
+      // Si la respuesta no es exitosa, lanzar error
+      if (!response.ok) {
+        const errorMessage = data.message || data.error || `HTTP error! status: ${response.status}`
+        throw new Error(errorMessage)
+      }
+
+      // Verificar si el login fue exitoso
+      if (!data.success) {
+        const errorMessage = data.message || 'Error al iniciar sesión'
+        throw new Error(errorMessage)
+      }
+
+      // Guardar tokens y datos del usuario
+      if (data.token && data.refreshToken) {
+        saveTokens(data.token, data.refreshToken)
+        if (data.usuario) {
+          saveUserData(data.usuario)
+        } else if (data.suscriptor) {
+          saveUserData(data.suscriptor)
+        }
+      } else {
+        throw new Error('No se recibieron los tokens de autenticación')
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error en login:', error)
+      throw error
+    }
+  },
+
+  // Logout
+  logout() {
+    clearAuth()
+  }
+}
 
 // Promoción Types
 export interface PromocionCreateDTO {
@@ -78,6 +141,7 @@ export interface AnfitrionDTO {
 export interface ConcursoCreateDTO {
   concNombre: string;
   concFechaPropuesta: string; 
+  concHora?: string; // Format: HH:mm (LocalTime)
   usuaId: number;
   concWc: number;
   concIsActive: boolean;
@@ -87,6 +151,7 @@ export interface ConcursoUpdateDTO {
   concId: number;
   concNombre: string;
   concFechaPropuesta: string;
+  concHora?: string; // Format: HH:mm (LocalTime)
   usuaId: number;
   concWc: number;
   concImagen?: string;
@@ -95,6 +160,14 @@ export interface ConcursoUpdateDTO {
 
 export interface ConcursoResponse {
   concId?: number;
+  concNombre?: string;
+  concFechaPropuesta?: string;
+  concHora?: string; // Format: HH:mm (LocalTime)
+  usuaId?: number;
+  nombreAnfitrion?: string;
+  concWc?: number;
+  concImagen?: string;
+  concIsActive?: boolean;
   mensaje?: string;
   success?: boolean;
 }
@@ -103,6 +176,7 @@ export interface ConcursoAdminDTO {
   concId: number;
   concNombre: string;
   concFechaPropuesta: string;
+  concHora?: string; // Format: HH:mm (LocalTime)
   usuaId: number;
   nombreAnfitrion: string;
   concWc: number;
@@ -146,14 +220,9 @@ export const usuarioApi = {
   // Get all users for admin
   async findAll(): Promise<UsuarioAdminDTO[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/usuario/find-all`, {
+      const response = await apiFetch(`${API_BASE_URL}/usuario/find-all`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          // Add authentication token if needed
-          // 'Authorization': `Bearer ${token}`
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -180,12 +249,9 @@ export const usuarioApi = {
     isActive: boolean;
   }): Promise<UsuarioResponseDTO> {
     try {
-      const response = await fetch(`${API_BASE_URL}/usuario/create`, {
+      const response = await apiFetch(`${API_BASE_URL}/usuario/create`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(userData),
       });
 
@@ -205,12 +271,9 @@ export const usuarioApi = {
   // Update a user
   async update(userData: UsuarioUpdateDTO): Promise<UsuarioResponseDTO> {
     try {
-      const response = await fetch(`${API_BASE_URL}/usuario/update`, {
+      const response = await apiFetch(`${API_BASE_URL}/usuario/update`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(userData),
       });
 
@@ -230,12 +293,9 @@ export const usuarioApi = {
   // Delete a user
   async delete(id: string): Promise<UsuarioResponseDTO> {
     try {
-      const response = await fetch(`${API_BASE_URL}/usuario/delete/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/usuario/delete/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       const data = await response.json();
@@ -254,12 +314,9 @@ export const usuarioApi = {
   // Reset password
   async resetPassword(id: string, newPassword: string): Promise<UsuarioResponseDTO> {
     try {
-      const response = await fetch(`${API_BASE_URL}/usuario/${id}/reset-password`, {
+      const response = await apiFetch(`${API_BASE_URL}/usuario/${id}/reset-password`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ newPassword }),
       });
 
@@ -282,12 +339,9 @@ export const anfitrionApi = {
   // Get all active anfitriones
   async getActiveAnfitriones(): Promise<AnfitrionDTO[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/concurso/anfitriones-active`, {
+      const response = await apiFetch(`${API_BASE_URL}/concurso/anfitriones-active`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -308,12 +362,9 @@ export const concursoApi = {
   // Get all concursos for admin
   async findAllForAdmin(): Promise<ConcursoAdminDTO[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/concurso/find-all`, {
+      const response = await apiFetch(`${API_BASE_URL}/concurso/find-all`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -328,6 +379,46 @@ export const concursoApi = {
     }
   },
 
+  // Get all active concursos for admin
+  async findAllActiveForAdmin(): Promise<ConcursoAdminDTO[]> {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/concurso/find-all-active-admin`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching active concursos:', error);
+      throw error;
+    }
+  },
+
+  // Get concurso by ID
+  async getById(id: number): Promise<ConcursoResponse> {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/concurso/find-by-id/${id}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching concurso by ID:', error);
+      throw error;
+    }
+  },
+
   async createWithImage(concursoData: ConcursoCreateDTO, imageFile: File): Promise<ConcursoResponse> {
     try {
       const formData = new FormData();
@@ -335,13 +426,17 @@ export const concursoApi = {
       // Agregar cada campo individualmente como espera el backend
       formData.append('concNombre', concursoData.concNombre);
       formData.append('concFechaPropuesta', concursoData.concFechaPropuesta);
+      if (concursoData.concHora) {
+        formData.append('concHora', createLocalTime(concursoData.concHora));
+      }
       formData.append('usuaId', concursoData.usuaId.toString());
       formData.append('concWc', concursoData.concWc.toString());
       formData.append('concIsActive', concursoData.concIsActive.toString());
       formData.append('concImagen', imageFile);
 
-      const response = await fetch(`${API_BASE_URL}/concurso/create`, {
+      const response = await apiFetch(`${API_BASE_URL}/concurso/create`, {
         method: 'POST',
+        headers: getAuthHeaders(false), // false porque es FormData
         body: formData,
       });
 
@@ -362,26 +457,24 @@ export const concursoApi = {
   // Update a concurso (with or without image) - using FormData like CREATE
   async updateWithImage(concursoData: ConcursoUpdateDTO, imageFile?: File): Promise<ConcursoResponse> {
     try {
-      console.log('🔄 Enviando datos para actualizar concurso:', concursoData);
-      
       const formData = new FormData();
       formData.append('concId', concursoData.concId.toString());
       formData.append('concNombre', concursoData.concNombre);
       formData.append('concFechaPropuesta', concursoData.concFechaPropuesta);
+      if (concursoData.concHora) {
+        formData.append('concHora', createLocalTime(concursoData.concHora));
+      }
       formData.append('usuaId', concursoData.usuaId.toString());
       formData.append('concWc', concursoData.concWc.toString());
       formData.append('concIsActive', concursoData.concIsActive.toString());
       
-      // Solo agregar la imagen si se proporciona una nueva
       if (imageFile) {
         formData.append('concImagen', imageFile);
-        console.log('📸 Incluyendo nueva imagen en la actualización');
-      } else {
-        console.log('📝 Actualizando sin cambiar imagen');
       }
 
-      const response = await fetch(`${API_BASE_URL}/concurso/update`, {
+      const response = await apiFetch(`${API_BASE_URL}/concurso/update`, {
         method: 'PUT',
+        headers: getAuthHeaders(false), // false porque es FormData
         body: formData,
       });
 
@@ -410,12 +503,9 @@ export const concursoApi = {
   // Delete a concurso
   async delete(id: number): Promise<ConcursoResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/concurso/delete/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/concurso/delete/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       console.log('📡 Respuesta del servidor - Status:', response.status);
@@ -473,8 +563,9 @@ export const promocionAPI = {
       
       formData.append('promIsActive', data.promIsActive.toString());
 
-      const response = await fetch(`${API_BASE_URL}/promocion/create`, {
+      const response = await apiFetch(`${API_BASE_URL}/promocion/create`, {
         method: 'POST',
+        headers: getAuthHeaders(false), // false porque es FormData
         body: formData,
       });
 
@@ -493,11 +584,9 @@ export const promocionAPI = {
   // Get all promociones
   async findAll(): Promise<PromocionResponse[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/promocion/find-all`, {
+      const response = await apiFetch(`${API_BASE_URL}/promocion/find-all`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -515,11 +604,9 @@ export const promocionAPI = {
   // Get promoción by ID
   async findById(id: number): Promise<PromocionResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/promocion/find-by-id/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/promocion/find-by-id/${id}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -537,11 +624,9 @@ export const promocionAPI = {
   // Get promociones actuales (activas)
   async getActuales(): Promise<PromocionActualDTO[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/promocion/actuales`, {
+      const response = await apiFetch(`${API_BASE_URL}/promocion/actuales`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -559,11 +644,9 @@ export const promocionAPI = {
   // Get promociones solicitadas
   async getSolicitadas(): Promise<PromocionSolicitadaDTO[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/promocion/solicitadas`, {
+      const response = await apiFetch(`${API_BASE_URL}/promocion/solicitadas`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -581,11 +664,9 @@ export const promocionAPI = {
   // Get promociones vencidas
   async getVencidas(): Promise<PromocionVencidaDTO[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/promocion/vencidas`, {
+      const response = await apiFetch(`${API_BASE_URL}/promocion/vencidas`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -603,12 +684,9 @@ export const promocionAPI = {
   // Delete promoción
   async delete(id: number): Promise<{ success: boolean; response?: PromocionResponse }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/promocion/delete/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/promocion/delete/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       console.log('📡 Respuesta del servidor - Status:', response.status);
@@ -729,9 +807,10 @@ export const novedadesAPI = {
       // Agregar estado activo
       formData.append('noveIsActive', novedadData.noveIsActive.toString());
 
-      const response = await fetch(`${API_BASE_URL}/novedades/create-from-dto`, {
+      const response = await apiFetch(`${API_BASE_URL}/novedades/create-from-dto`, {
         method: 'POST',
-        body: formData, // FormData will set the correct Content-Type header (multipart/form-data)
+        headers: getAuthHeaders(false), // false porque es FormData
+        body: formData,
       });
 
       if (!response.ok) {
@@ -750,11 +829,9 @@ export const novedadesAPI = {
   // Get novedades activas
   async getActivas(): Promise<NovedadesListResponse[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/novedades/activas`, {
+      const response = await apiFetch(`${API_BASE_URL}/novedades/activas`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -772,11 +849,9 @@ export const novedadesAPI = {
   // Get novedades inactivas
   async getInactivas(): Promise<NovedadesListResponse[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/novedades/inactivas`, {
+      const response = await apiFetch(`${API_BASE_URL}/novedades/inactivas`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -794,11 +869,9 @@ export const novedadesAPI = {
   // Get novedades borrador
   async getBorrador(): Promise<NovedadesListResponse[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/novedades/borrador`, {
+      const response = await apiFetch(`${API_BASE_URL}/novedades/borrador`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -816,12 +889,9 @@ export const novedadesAPI = {
   // Get novedad by ID
   async findById(id: number): Promise<NovedadesResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/novedades/find-by-id/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/novedades/find-by-id/${id}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -871,9 +941,10 @@ export const novedadesAPI = {
         formData.append('noveIsActive', novedadData.noveIsActive.toString());
       }
 
-      const response = await fetch(`${API_BASE_URL}/novedades/update-from-dto/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/novedades/update-from-dto/${id}`, {
         method: 'PUT',
-        body: formData, // FormData will set the correct Content-Type header (multipart/form-data)
+        headers: getAuthHeaders(false), // false porque es FormData
+        body: formData,
       });
 
       if (!response.ok) {
@@ -892,12 +963,9 @@ export const novedadesAPI = {
   // Delete novedad
   async delete(id: number): Promise<{ success: boolean, response?: NovedadesResponse, message?: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/novedades/delete/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/novedades/delete/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       console.log('📡 Respuesta del servidor - Status:', response.status);
@@ -979,12 +1047,9 @@ export const sponsorsAPI = {
   // Get all sponsors (solo retorna sponId y sponNombre)
   async getAll(): Promise<SponsorListDTO[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/sponsor/find-all`, {
+      const response = await apiFetch(`${API_BASE_URL}/sponsor/find-all`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -1003,12 +1068,9 @@ export const sponsorsAPI = {
   // Get sponsor by ID (retorna todos los datos del sponsor)
   async getById(id: number): Promise<SponsorResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/sponsor/find-by-id/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/sponsor/find-by-id/${id}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -1050,9 +1112,10 @@ export const sponsorsAPI = {
       // Agregar imagen (MultipartFile)
       formData.append('sponImagen', sponsorData.sponImagen);
 
-      const response = await fetch(`${API_BASE_URL}/sponsor/create`, {
+      const response = await apiFetch(`${API_BASE_URL}/sponsor/create`, {
         method: 'POST',
-        body: formData, // FormData will set the correct Content-Type header (multipart/form-data)
+        headers: getAuthHeaders(false), // false porque es FormData
+        body: formData,
       });
 
       if (!response.ok) {
@@ -1084,12 +1147,9 @@ export const sponsorsAPI = {
         sponImagen: sponsorData.sponImagen // String (URL o path)
       };
 
-      const response = await fetch(`${API_BASE_URL}/sponsor/update`, {
+      const response = await apiFetch(`${API_BASE_URL}/sponsor/update`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(requestBody),
       });
 
@@ -1140,11 +1200,9 @@ export const parametrosAPI = {
   // Get all parámetros
   async getAll(): Promise<ParametroResponse[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/parametros/find-all`, {
+      const response = await apiFetch(`${API_BASE_URL}/parametros/find-all`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -1162,11 +1220,9 @@ export const parametrosAPI = {
   // Create parámetro from DTO (usa JSON, no FormData)
   async createFromDTO(parametroData: ParametroCreateDTO): Promise<ParametroResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/parametros/create-from-dto`, {
+      const response = await apiFetch(`${API_BASE_URL}/parametros/create-from-dto`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           paraNombre: parametroData.paraNombre,
           paraValor: parametroData.paraValor,
@@ -1191,11 +1247,9 @@ export const parametrosAPI = {
   // Update parámetro from DTO (usa JSON, no FormData)
   async updateFromDTO(id: number, parametroData: ParametroUpdateDTO): Promise<ParametroResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/parametros/update-from-dto/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/parametros/update-from-dto/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           paraNombre: parametroData.paraNombre,
           paraValor: parametroData.paraValor,
@@ -1220,11 +1274,9 @@ export const parametrosAPI = {
   // Delete parámetro
   async delete(id: number): Promise<ParametroResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/parametros/delete/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/parametros/delete/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -1269,11 +1321,9 @@ export const preguntasFrecuentesAPI = {
   // Get all preguntas frecuentes
   async getAll(): Promise<PreguntaResponse[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/preguntas-frecuentes/find-all`, {
+      const response = await apiFetch(`${API_BASE_URL}/preguntas-frecuentes/find-all`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -1291,11 +1341,9 @@ export const preguntasFrecuentesAPI = {
   // Get pregunta by id
   async getById(id: number): Promise<PreguntaResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/preguntas-frecuentes/find-by-id/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/preguntas-frecuentes/find-by-id/${id}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -1313,11 +1361,9 @@ export const preguntasFrecuentesAPI = {
   // Create pregunta from DTO (usa JSON, no FormData)
   async createFromDTO(preguntaData: PreguntaCreateDTO): Promise<PreguntaResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/preguntas-frecuentes/create-from-dto`, {
+      const response = await apiFetch(`${API_BASE_URL}/preguntas-frecuentes/create-from-dto`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           pregPregunta: preguntaData.pregPregunta,
           pregRespuesta: preguntaData.pregRespuesta
@@ -1340,11 +1386,9 @@ export const preguntasFrecuentesAPI = {
   // Update pregunta from DTO (usa JSON, no FormData)
   async updateFromDTO(id: number, preguntaData: PreguntaUpdateDTO): Promise<PreguntaResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/preguntas-frecuentes/update-from-dto/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/preguntas-frecuentes/update-from-dto/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           pregPregunta: preguntaData.pregPregunta,
           pregRespuesta: preguntaData.pregRespuesta,
@@ -1368,11 +1412,9 @@ export const preguntasFrecuentesAPI = {
   // Delete pregunta
   async delete(id: number): Promise<PreguntaResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/preguntas-frecuentes/delete/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/preguntas-frecuentes/delete/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -1421,11 +1463,9 @@ export const paginasEstaticasAPI = {
   // Get all páginas estáticas
   async getAll(): Promise<PaginaEstaticaResponse[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/paginas-estaticas/find-all`, {
+      const response = await apiFetch(`${API_BASE_URL}/paginas-estaticas/find-all`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -1443,11 +1483,9 @@ export const paginasEstaticasAPI = {
   // Get página estática by id
   async getById(id: number): Promise<PaginaEstaticaResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/paginas-estaticas/find-by-id/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/paginas-estaticas/find-by-id/${id}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -1479,9 +1517,10 @@ export const paginasEstaticasAPI = {
         formData.append('pestImagenes', imagen);
       });
 
-      const response = await fetch(`${API_BASE_URL}/paginas-estaticas/create-from-dto`, {
+      const response = await apiFetch(`${API_BASE_URL}/paginas-estaticas/create-from-dto`, {
         method: 'POST',
-        body: formData, // FormData will set the correct Content-Type header (multipart/form-data)
+        headers: getAuthHeaders(false), // false porque es FormData
+        body: formData,
       });
 
       if (!response.ok) {
@@ -1515,9 +1554,10 @@ export const paginasEstaticasAPI = {
         });
       }
 
-      const response = await fetch(`${API_BASE_URL}/paginas-estaticas/update-from-dto/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/paginas-estaticas/update-from-dto/${id}`, {
         method: 'PUT',
-        body: formData, // FormData will set the correct Content-Type header (multipart/form-data)
+        headers: getAuthHeaders(false), // false porque es FormData
+        body: formData,
       });
 
       if (!response.ok) {
@@ -1536,11 +1576,9 @@ export const paginasEstaticasAPI = {
   // Delete página estática
   async delete(id: number): Promise<PaginaEstaticaResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/paginas-estaticas/delete/${id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/paginas-estaticas/delete/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -1552,6 +1590,168 @@ export const paginasEstaticasAPI = {
       return result;
     } catch (error) {
       console.error('Error deleting página estática:', error);
+      throw error;
+    }
+  },
+};
+
+// ==================== NORMATIVAS ====================
+
+export interface NormativaCreateDTO {
+  normaTitulo: string;
+  normaDescripcion: string;
+  normaLink: string;
+  normaArchivo?: File; // Opcional - JPG/PNG, máx 40MB
+  normaEnviarAlerta?: boolean; // Opcional, por defecto false
+}
+
+export interface NormativaUpdateDTO {
+  normaTitulo: string;
+  normaDescripcion: string;
+  normaLink: string;
+  normaArchivo?: File; // Opcional - Nuevo archivo
+  normaEnviarAlerta?: boolean; // Opcional
+}
+
+export interface NormativaResponse {
+  normaId?: number;
+  normaTitulo?: string;
+  normaDescripcion?: string;
+  normaLink?: string;
+  normaArchivo?: string; // URL del archivo
+  normaEnviarAlerta?: boolean;
+  normaFechaRegistrado?: string;
+  normaFechaModificado?: string;
+  mensaje?: string | null;
+  success?: boolean;
+}
+
+export const normativasAPI = {
+  // Get all normativas
+  async getAll(): Promise<NormativaResponse[]> {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/normativas/find-all`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: NormativaResponse[] = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error fetching normativas:', error);
+      throw error;
+    }
+  },
+
+  // Get normativa by ID
+  async getById(id: number): Promise<NormativaResponse> {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/normativas/find-by-id/${id}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: NormativaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error fetching normativa:', error);
+      throw error;
+    }
+  },
+
+  // Create normativa from DTO (usa FormData para archivo)
+  async createFromDTO(normativaData: NormativaCreateDTO): Promise<NormativaResponse> {
+    try {
+      const formData = new FormData();
+      formData.append('normaTitulo', normativaData.normaTitulo);
+      formData.append('normaDescripcion', normativaData.normaDescripcion);
+      formData.append('normaLink', normativaData.normaLink);
+      if (normativaData.normaArchivo) {
+        formData.append('normaArchivo', normativaData.normaArchivo);
+      }
+      if (normativaData.normaEnviarAlerta !== undefined) {
+        formData.append('normaEnviarAlerta', normativaData.normaEnviarAlerta.toString());
+      }
+
+      const response = await apiFetch(`${API_BASE_URL}/normativas/create-from-dto`, {
+        method: 'POST',
+        headers: getAuthHeaders(false), // false porque es FormData
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: NormativaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error creating normativa:', error);
+      throw error;
+    }
+  },
+
+  // Update normativa from DTO (usa FormData para archivo opcional)
+  async updateFromDTO(id: number, normativaData: NormativaUpdateDTO): Promise<NormativaResponse> {
+    try {
+      const formData = new FormData();
+      formData.append('normaTitulo', normativaData.normaTitulo);
+      formData.append('normaDescripcion', normativaData.normaDescripcion);
+      formData.append('normaLink', normativaData.normaLink);
+      if (normativaData.normaArchivo) {
+        formData.append('normaArchivo', normativaData.normaArchivo);
+      }
+      if (normativaData.normaEnviarAlerta !== undefined) {
+        formData.append('normaEnviarAlerta', normativaData.normaEnviarAlerta.toString());
+      }
+
+      const response = await apiFetch(`${API_BASE_URL}/normativas/update-from-dto/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(false), // false porque es FormData
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: NormativaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error updating normativa:', error);
+      throw error;
+    }
+  },
+
+  // Delete normativa
+  async delete(id: number): Promise<NormativaResponse> {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/normativas/delete/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || `Error HTTP: ${response.status}`);
+      }
+
+      const result: NormativaResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error deleting normativa:', error);
       throw error;
     }
   },

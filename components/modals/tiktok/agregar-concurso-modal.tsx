@@ -1,16 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { FechasIcon, HoraIcon } from "@/components/icons/configuraciones-icons"
 import { Button } from "@/components/ui/button"
 import { GradientButton } from "@/components/ui/gradient-button"
 import { GradientOutlineButton } from "@/components/ui/gradient-outline-button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { anfitrionApi, AnfitrionDTO } from "@/lib/api"
 
 interface AgregarConcursoModalProps {
   isOpen: boolean
@@ -19,14 +21,76 @@ interface AgregarConcursoModalProps {
 }
 
 export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcursoModalProps) {
+  const [anfitriones, setAnfitriones] = useState<AnfitrionDTO[]>([])
+  const [loadingAnfitriones, setLoadingAnfitriones] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  
   const [formData, setFormData] = useState({
     nombre: "",
     fecha: null as Date | null,
-    anfitrion: "",
+    usuaId: 0,
+    nombreAnfitrion: "",
     hora: ""
   })
 
+  // Cargar anfitriones cuando se abra el modal
+  useEffect(() => {
+    if (isOpen) {
+      const fetchAnfitriones = async () => {
+        try {
+          setIsLoadingData(true)
+          setLoadingAnfitriones(true)
+          const data = await anfitrionApi.getActiveAnfitriones()
+          setAnfitriones(data)
+        } catch (error) {
+          // Error loading anfitriones
+        } finally {
+          setLoadingAnfitriones(false)
+          setIsLoadingData(false)
+        }
+      }
+      
+      fetchAnfitriones()
+    }
+  }, [isOpen])
+
+  // Limpiar formData cuando se abra el modal
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        nombre: "",
+        fecha: null,
+        usuaId: 0,
+        nombreAnfitrion: "",
+        hora: ""
+      })
+    }
+  }, [isOpen])
+
+  const handleAnfitrionChange = (usuaId: string) => {
+    const anfitrion = anfitriones.find(a => a.id === parseInt(usuaId, 10))
+    setFormData(prev => ({
+      ...prev,
+      usuaId: parseInt(usuaId, 10),
+      nombreAnfitrion: anfitrion ? anfitrion.nombre : ""
+    }))
+  }
+
   if (!isOpen) return null
+
+  // No mostrar el modal hasta que todos los datos estén cargados
+  if (isLoadingData) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+        <div className="bg-white rounded-xl w-[95vw] max-w-[684px] h-[95vh] max-h-[500px] mx-2 sm:mx-4 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-4 border-[#6137E5] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-600">Cargando datos...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -92,14 +156,24 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
 
                   <div className="flex-1">
                     <label className="block text-xs font-medium text-gray-700 mb-2">Nombre de anfitrión(a)</label>
-                    <Input
-                      type="text"
-                      value={formData.anfitrion}
-                      onChange={(e) => handleInputChange("anfitrion", e.target.value)}
-                      placeholder="Ingresa un nombre"
-                      className="w-full sm:w-[230px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                      style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                    />
+                    <Select 
+                      value={formData.usuaId > 0 ? formData.usuaId.toString() : ""} 
+                      onValueChange={handleAnfitrionChange}
+                      disabled={loadingAnfitriones}
+                    >
+                      <SelectTrigger className="w-full sm:w-[230px] h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_20px_rgba(219,8,110,0.08)] border-none">
+                        <SelectValue placeholder={loadingAnfitriones ? "Cargando..." : "Selecciona un anfitrión"}>
+                          {formData.nombreAnfitrion || (loadingAnfitriones ? "Cargando..." : "Selecciona un anfitrión")}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="!z-[10001]">
+                        {anfitriones.map((anfitrion) => (
+                          <SelectItem key={anfitrion.id} value={anfitrion.id.toString()}>
+                            {anfitrion.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -114,7 +188,7 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
                           className="w-full sm:w-[230px] h-[40px] justify-between text-left font-normal"
                           style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
                         >
-                          {formData.fecha ? format(formData.fecha, "dd/MM/yyyy", { locale: es }) : '03/10/2024'}
+                          {formData.fecha ? format(formData.fecha, "dd/MM/yyyy", { locale: es }) : 'Seleccionar fecha'}
                           <FechasIcon />
                         </Button>
                       </PopoverTrigger>
@@ -158,8 +232,7 @@ export function AgregarConcursoModal({ isOpen, onClose, onSave }: AgregarConcurs
                   Cancelar
                 </GradientOutlineButton>
                 <GradientButton
-                  type="button"
-                  onClick={() => handleSubmit({} as React.FormEvent)}
+                  type="submit"
                   className="w-[138px] h-[40px]"
                 >
                   Agregar

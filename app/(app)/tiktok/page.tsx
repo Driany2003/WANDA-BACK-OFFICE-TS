@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, MoreVertical } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Plus, MoreVertical, RefreshCw } from "lucide-react"
 import Image from "next/image"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
@@ -13,25 +13,73 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { TachoIcon, LapizIcon } from "@/components/icons/tiktok-icons"
 import { AgregarConcursoModal, EditarConcursoModal, EliminarConcursoModal } from "@/components/modals/tiktok"
+import { concursoApi, ConcursoAdminDTO, ConcursoCreateDTO, ConcursoUpdateDTO } from "@/lib/api"
+import { format } from "date-fns"
 
 export default function TikTokPage() {
   const [checkedSuscriptores, setCheckedSuscriptores] = useState<string[]>([])
   const [checkedConcursos, setCheckedConcursos] = useState<string[]>([])
+  const [proximosConcursos, setProximosConcursos] = useState<ConcursoAdminDTO[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   
   // Estados para los modales
   const [isAgregarModalOpen, setIsAgregarModalOpen] = useState(false)
   const [isEditarModalOpen, setIsEditarModalOpen] = useState(false)
   const [isEliminarModalOpen, setIsEliminarModalOpen] = useState(false)
-  const [concursoSeleccionado, setConcursoSeleccionado] = useState<any>(null)
+  const [concursoSeleccionado, setConcursoSeleccionado] = useState<{
+    id: string
+    nombre: string
+    fecha?: string
+    anfitrion?: string
+    horario?: string
+    originalData?: ConcursoAdminDTO
+  } | null>(null)
 
   const suscriptores = [
     { id: "1", usuarioTiktok: "@Jose2509", nombre: "José Sánchez", fecha: "25/09/2024", cantidadOpciones: 2 },
     { id: "2", usuarioTiktok: "@Jesus21", nombre: "Jesús López", fecha: "25/09/2024", cantidadOpciones: 1 },
   ]
 
-  const proximosConcursos = [
-    { id: "1", nombre: "Cartas", fecha: "13/10/2024", anfitrion: "Joselin Quispe", horario: "10:00pm" },
-  ]
+  // Función para formatear fecha sin problemas de zona horaria
+  const formatDate = (dateString: string): string => {
+    try {
+      // Si viene en formato "yyyy-mm-dd" o "yyyy-mm-dd hh:mm:ss", extraer solo la fecha
+      const dateOnly = dateString.split(' ')[0].split('T')[0]
+      const [year, month, day] = dateOnly.split('-')
+      // Crear fecha en hora local para evitar problemas de zona horaria
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+      return date.toLocaleDateString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      })
+    } catch {
+      return dateString
+    }
+  }
+
+  // Función para formatear hora (HH:mm)
+  const formatHora = (hora?: string): string => {
+    if (!hora) return '-'
+    return hora.length >= 5 ? hora.substring(0, 5) : hora
+  }
+
+  // Cargar concursos activos
+  const fetchProximosConcursos = async () => {
+    try {
+      setIsLoading(true)
+      const data = await concursoApi.findAllActiveForAdmin()
+      setProximosConcursos(data)
+    } catch (error) {
+      console.error("Error al obtener próximos concursos:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchProximosConcursos()
+  }, [])
 
   const toggleSuscriptorCheck = (id: string) => {
     setCheckedSuscriptores(prev => 
@@ -49,43 +97,76 @@ export default function TikTokPage() {
     )
   }
 
-  const handleEditarJuego = (id: string) => {
-    const concurso = proximosConcursos.find(c => c.id === id)
-    if (concurso) {
-      setConcursoSeleccionado(concurso)
-      setIsEditarModalOpen(true)
-    }
+  const handleEditarJuego = (concurso: ConcursoAdminDTO) => {
+    // Adaptar ConcursoAdminDTO al formato que espera el modal
+    // Usar la fecha original del backend para evitar problemas de zona horaria
+    setConcursoSeleccionado({
+      id: concurso.concId.toString(),
+      nombre: concurso.concNombre,
+      fecha: concurso.concFechaPropuesta, // Enviar la fecha original del backend
+      anfitrion: concurso.nombreAnfitrion,
+      horario: concurso.concHora || '',
+      originalData: concurso
+    })
+    setIsEditarModalOpen(true)
   }
 
-  const handleEliminarJuego = (id: string) => {
-    const concurso = proximosConcursos.find(c => c.id === id)
-    if (concurso) {
-      setConcursoSeleccionado({
-        id: concurso.id,
-        nombre: concurso.nombre
-      })
-      setIsEliminarModalOpen(true)
-    }
+  const handleEliminarJuego = (concurso: ConcursoAdminDTO) => {
+    // Adaptar ConcursoAdminDTO al formato que espera el modal
+    setConcursoSeleccionado({
+      id: concurso.concId.toString(),
+      nombre: concurso.concNombre,
+      originalData: concurso // Guardar los datos originales para referencia
+    })
+    setIsEliminarModalOpen(true)
   }
 
-  const handleAgregarConcurso = (data: any) => {
-    console.log("Agregando concurso:", data)
-    // Aquí iría la lógica para agregar el concurso
+  const handleAgregarConcurso = async (data: any) => {
+    // El modal de agregar en TikTok no tiene todos los campos necesarios
+    // Por ahora solo refrescamos la lista
+    fetchProximosConcursos()
     setIsAgregarModalOpen(false)
   }
 
-  const handleGuardarEdicion = (data: any) => {
-    console.log("Guardando edición de concurso:", data)
-    // Aquí iría la lógica para guardar los cambios
-    setIsEditarModalOpen(false)
-    setConcursoSeleccionado(null)
+  const handleGuardarEdicion = async (data: any) => {
+    try {
+      if (!concursoSeleccionado?.originalData) return
+      
+      const fechaFormateada = data.fecha 
+        ? format(data.fecha, "yyyy-MM-dd") 
+        : format(new Date(concursoSeleccionado.originalData.concFechaPropuesta), "yyyy-MM-dd")
+      
+      const updateData: ConcursoUpdateDTO = {
+        concId: parseInt(data.id),
+        concNombre: data.nombre,
+        concFechaPropuesta: `${fechaFormateada} 00:00:00`,
+        concHora: data.hora || undefined,
+        usuaId: data.usuaId || concursoSeleccionado.originalData.usuaId,
+        concWc: concursoSeleccionado.originalData.concWc,
+        concImagen: concursoSeleccionado.originalData.concImagen,
+        concIsActive: true
+      }
+      
+      await concursoApi.updateWithImage(updateData)
+      fetchProximosConcursos()
+      setIsEditarModalOpen(false)
+      setConcursoSeleccionado(null)
+    } catch (error) {
+      console.error("Error al editar concurso:", error)
+    }
   }
 
-  const handleConfirmarEliminacion = (id: string) => {
-    console.log("Confirmando eliminación de concurso:", id)
-    // Aquí iría la lógica para eliminar el concurso
-    setIsEliminarModalOpen(false)
-    setConcursoSeleccionado(null)
+  const handleConfirmarEliminacion = async (id: string) => {
+    try {
+      if (!concursoSeleccionado?.originalData) return
+      
+      await concursoApi.delete(concursoSeleccionado.originalData.concId)
+      fetchProximosConcursos()
+      setIsEliminarModalOpen(false)
+      setConcursoSeleccionado(null)
+    } catch (error) {
+      console.error("Error al eliminar concurso:", error)
+    }
   }
 
   return (
@@ -181,24 +262,31 @@ export default function TikTokPage() {
       <div className="space-y-6">
         <div className="p-6 flex items-center justify-between">
           <h2 className="text-base font-medium text-black">Próximos concursos</h2>
-          <button 
-            onClick={() => setIsAgregarModalOpen(true)}
-            className="bg-gradient-to-r from-[#DB086E] to-[#3A05DF] text-white px-6 py-2 rounded-md hover:opacity-90 transition-opacity font-medium flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Agregar
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchProximosConcursos}
+              className="text-gray-600 hover:text-gray-800 p-2 rounded-md hover:bg-gray-100"
+              title="Refrescar"
+            >
+              <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+            <button 
+              onClick={() => setIsAgregarModalOpen(true)}
+              className="bg-gradient-to-r from-[#DB086E] to-[#3A05DF] text-white px-6 py-2 rounded-md hover:opacity-90 transition-opacity font-medium flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Agregar
+            </button>
+          </div>
         </div>
         
-        {proximosConcursos.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
+          </div>
+        ) : proximosConcursos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
-            <Image
-              src="/no-hay-concursos.png"
-              alt="No hay concursos"
-              width={320}
-              height={320}
-              className="w-80 h-80 object-contain"
-            />
+            <p className="text-gray-600 text-base">No hay próximos concursos por ahora</p>
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl bg-white" style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.15)' }}>
@@ -226,7 +314,7 @@ export default function TikTokPage() {
                 <tbody className="bg-[#FBFBFB]">
                   {proximosConcursos.map((concurso, index) => (
                     <tr 
-                      key={concurso.id} 
+                      key={concurso.concId} 
                       className="bg-[#FBFBFB]"
                       style={{ 
                         borderBottom: index < proximosConcursos.length - 1 ? '1px solid #A4A4A4' : 'none'
@@ -235,21 +323,21 @@ export default function TikTokPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center gap-2">
                           <Checkbox 
-                            checked={checkedConcursos.includes(concurso.id)}
-                            onCheckedChange={() => toggleConcursoCheck(concurso.id)}
+                            checked={checkedConcursos.includes(concurso.concId.toString())}
+                            onCheckedChange={() => toggleConcursoCheck(concurso.concId.toString())}
                             className="data-[state=checked]:bg-[#777777] data-[state=checked]:border-[#777777]"
                           />
-                          <span className="text-sm font-normal text-gray-900 flex-1 text-center">{concurso.nombre}</span>
+                          <span className="text-sm font-normal text-gray-900 flex-1 text-center">{concurso.concNombre}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
-                        {concurso.fecha}
+                        {formatDate(concurso.concFechaPropuesta)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
-                        {concurso.anfitrion}
+                        {concurso.nombreAnfitrion}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
-                        {concurso.horario}
+                        {formatHora(concurso.concHora)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <DropdownMenu>
@@ -264,14 +352,14 @@ export default function TikTokPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent className="w-54">
                             <DropdownMenuItem 
-                              onClick={() => handleEditarJuego(concurso.id)}
+                              onClick={() => handleEditarJuego(concurso)}
                               className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
                             >
                               <LapizIcon />
                               Editar juego
                             </DropdownMenuItem>
                             <DropdownMenuItem 
-                              onClick={() => handleEliminarJuego(concurso.id)}
+                              onClick={() => handleEliminarJuego(concurso)}
                               className="flex items-center gap-2 text-[#A4A4A4] cursor-pointer text-sm font-medium"
                             >
                               <TachoIcon />
@@ -298,15 +386,23 @@ export default function TikTokPage() {
 
       {concursoSeleccionado && (
         <>
-          <EditarConcursoModal
-            isOpen={isEditarModalOpen}
-            onClose={() => {
-              setIsEditarModalOpen(false)
-              setConcursoSeleccionado(null)
-            }}
-            onSave={handleGuardarEdicion}
-            concursoData={concursoSeleccionado}
-          />
+          {concursoSeleccionado.fecha && concursoSeleccionado.anfitrion && concursoSeleccionado.horario && (
+            <EditarConcursoModal
+              isOpen={isEditarModalOpen}
+              onClose={() => {
+                setIsEditarModalOpen(false)
+                setConcursoSeleccionado(null)
+              }}
+              onSave={handleGuardarEdicion}
+              concursoData={{
+                id: concursoSeleccionado.id,
+                nombre: concursoSeleccionado.nombre,
+                fecha: concursoSeleccionado.fecha,
+                anfitrion: concursoSeleccionado.anfitrion,
+                horario: concursoSeleccionado.horario
+              }}
+            />
+          )}
           
           <EliminarConcursoModal
             isOpen={isEliminarModalOpen}
@@ -314,7 +410,10 @@ export default function TikTokPage() {
               setIsEliminarModalOpen(false)
               setConcursoSeleccionado(null)
             }}
-            concurso={concursoSeleccionado}
+            concurso={{
+              id: concursoSeleccionado.id,
+              nombre: concursoSeleccionado.nombre
+            }}
             onConfirm={handleConfirmarEliminacion}
           />
         </>

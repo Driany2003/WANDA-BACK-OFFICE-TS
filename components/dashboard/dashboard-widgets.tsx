@@ -19,7 +19,8 @@ interface DashboardWidgetsProps {
 
 export function DashboardWidgets({ stats }: DashboardWidgetsProps) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-12">
+    <div className="flex justify-center pt-12">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-28">
       {/* Ingresos Widget */}
       <Card className="h-full w-[456px] rounded-2xl shadow-[0_4px_6px_-1px_rgba(137,2,119,0.15)] overflow-hidden">
         <div className="bg-[#FEFEFE] px-6 py-4 border-b border-gray-200">
@@ -177,6 +178,7 @@ export function DashboardWidgets({ stats }: DashboardWidgetsProps) {
           </div>
         </div>
       </Card>
+      </div>
     </div>
   )
 }

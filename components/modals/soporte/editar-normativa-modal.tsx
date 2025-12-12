@@ -1,20 +1,21 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { X, Upload } from 'lucide-react'
+import { X, Upload, RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { GradientButton } from '@/components/ui/gradient-button'
 import { GradientOutlineButton } from '@/components/ui/gradient-outline-button'
-import { Normativa } from '@/types/soporte'
 import { CargarIcon } from '@/components/icons'
 import { AlertIcon } from '@/components/icons/soporte-icons'
+import { normativasAPI, NormativaResponse, NormativaUpdateDTO } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
 
 interface EditarNormativaModalProps {
   isOpen: boolean
   onClose: () => void
-  normativa: Normativa | null
-  onSave: (normativa: Normativa) => void
+  normativa: NormativaResponse | null
+  onSave: () => void
 }
 
 export function EditarNormativaModal({
@@ -23,6 +24,11 @@ export function EditarNormativaModal({
   normativa,
   onSave
 }: EditarNormativaModalProps) {
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  const [normativaCompleta, setNormativaCompleta] = useState<NormativaResponse | null>(null)
+  const [archivoExistente, setArchivoExistente] = useState<string | undefined>(undefined)
   const [formData, setFormData] = useState({
     titulo: '',
     descripcion: '',
@@ -32,25 +38,125 @@ export function EditarNormativaModal({
   })
 
   useEffect(() => {
-    if (normativa) {
-      setFormData({
-        titulo: normativa.nombre,
-        descripcion: normativa.descripcion,
-        archivo: undefined,
-        link: '',
-        enviarAlerta: false
-      })
+    const fetchNormativaCompleta = async () => {
+      if (normativa?.normaId && isOpen) {
+        try {
+          setIsLoadingData(true)
+          // Primero mostrar los datos que ya tenemos del listado
+          setFormData({
+            titulo: normativa.normaTitulo || '',
+            descripcion: normativa.normaDescripcion || '',
+            archivo: undefined,
+            link: normativa.normaLink || '',
+            enviarAlerta: normativa.normaEnviarAlerta || false
+          })
+          setArchivoExistente(normativa.normaArchivo)
+          // Luego cargar los datos actualizados
+          const data = await normativasAPI.getById(normativa.normaId)
+          setNormativaCompleta(data)
+          setFormData({
+            titulo: data.normaTitulo || '',
+            descripcion: data.normaDescripcion || '',
+            archivo: undefined,
+            link: data.normaLink || '',
+            enviarAlerta: data.normaEnviarAlerta || false
+          })
+          setArchivoExistente(data.normaArchivo)
+        } catch (error) {
+          console.error('Error al cargar normativa:', error)
+          toast({
+            title: "Error",
+            description: "No se pudo cargar los datos de la normativa. Mostrando datos iniciales.",
+            variant: "destructive",
+          })
+          setFormData({
+            titulo: normativa.normaTitulo || '',
+            descripcion: normativa.normaDescripcion || '',
+            archivo: undefined,
+            link: normativa.normaLink || '',
+            enviarAlerta: normativa.normaEnviarAlerta || false
+          })
+        } finally {
+          setIsLoadingData(false)
+        }
+      }
     }
-  }, [normativa])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (normativa) {
-      onSave({
-        ...normativa,
-        ...formData
+    fetchNormativaCompleta()
+  }, [normativa?.normaId, isOpen, toast])
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({ titulo: '', descripcion: '', archivo: undefined, link: '', enviarAlerta: false })
+      setNormativaCompleta(null)
+      setArchivoExistente(undefined)
+      setIsLoadingData(false)
+    }
+  }, [isOpen])
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    
+    const normativaId = normativaCompleta?.normaId || normativa?.normaId
+    
+    if (!normativaId) {
+      toast({
+        title: "Error",
+        description: "No se pudo identificar la normativa a editar",
+        variant: "destructive",
       })
+      return
+    }
+
+    if (!formData.titulo.trim()) {
+      toast({
+        title: "Error",
+        description: "El título es requerido",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!formData.descripcion.trim()) {
+      toast({
+        title: "Error",
+        description: "La descripción es requerida",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!formData.link.trim()) {
+      toast({
+        title: "Error",
+        description: "El link es requerido",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      const updateData: NormativaUpdateDTO = {
+        normaTitulo: formData.titulo.trim(),
+        normaDescripcion: formData.descripcion.trim(),
+        normaLink: formData.link.trim(),
+        normaArchivo: formData.archivo, // Solo enviamos el archivo nuevo si existe
+        normaEnviarAlerta: formData.enviarAlerta
+      }
+
+      await normativasAPI.updateFromDTO(normativaId, updateData)
+      onSave()
       onClose()
+    } catch (error: any) {
+      console.error('Error al actualizar normativa:', error)
+      toast({
+        title: "Error",
+        description: error.message || "Error al actualizar la normativa",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -78,7 +184,19 @@ export function EditarNormativaModal({
     }))
   }
 
-  if (!isOpen || !normativa) return null
+  const removeArchivoExistente = () => {
+    setArchivoExistente(undefined)
+  }
+
+  const getFileName = (fileUrl: string): string => {
+    // Extraer el nombre del archivo de la URL
+    const parts = fileUrl.split('/')
+    const fileName = parts[parts.length - 1]
+    return fileName || 'Archivo'
+  }
+
+  // No mostrar el modal hasta que los datos estén cargados
+  if (!isOpen || !normativa || isLoadingData) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -162,23 +280,50 @@ export function EditarNormativaModal({
                       <span className="text-[14px] font-semibold">Selecciona una imagen</span>
                       <Upload className="w-4 h-4 text-gray-400" />
                     </button>
-                    {/* Tag de archivo seleccionado */}
-                    {formData.archivo && (
+                    {/* Tag de archivo existente */}
+                    {archivoExistente && (
                       <div className="flex flex-wrap gap-2 mt-2">
                         <div
                           className="bg-[#6137E5] text-white flex items-center gap-2"
                           style={{ 
-                            width: '84px', 
+                            minWidth: '84px', 
                             height: '24px', 
                             borderRadius: '12px',
                             padding: '0 8px'
                           }}
                         >
-                          <span className="text-[14px] font-medium truncate">Arch.01</span>
+                          <span className="text-[14px] font-medium truncate max-w-[60px]">
+                            {getFileName(archivoExistente)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={removeArchivoExistente}
+                            className="text-white hover:text-gray-200 transition-colors text-[16px] flex-shrink-0"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {/* Tag de archivo nuevo seleccionado */}
+                    {formData.archivo && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <div
+                          className="bg-[#6137E5] text-white flex items-center gap-2"
+                          style={{ 
+                            minWidth: '84px', 
+                            height: '24px', 
+                            borderRadius: '12px',
+                            padding: '0 8px'
+                          }}
+                        >
+                          <span className="text-[14px] font-medium truncate max-w-[60px]">
+                            {formData.archivo.name || 'Arch.01'}
+                          </span>
                           <button
                             type="button"
                             onClick={removeFile}
-                            className="text-white hover:text-gray-200 transition-colors text-[16px]"
+                            className="text-white hover:text-gray-200 transition-colors text-[16px] flex-shrink-0"
                           >
                             ×
                           </button>
@@ -234,10 +379,11 @@ export function EditarNormativaModal({
           </GradientOutlineButton>
           <GradientButton
             type="button"
-            onClick={() => handleSubmit({} as React.FormEvent)}
+            onClick={() => handleSubmit()}
             className="w-[138px] h-[40px]"
+            disabled={isLoading}
           >
-            Guardar
+            {isLoading ? "Guardando..." : "Guardar"}
           </GradientButton>
         </div>
       </div>

@@ -4,14 +4,15 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { SIDEBAR_ITEMS } from "@/lib/constants"
 import { CerrarSesion } from "@/components/icons/sidebar-icons"
+import { authApi } from "@/lib/api"
 
 export function SidebarNav() {
   const pathname = usePathname()
   const router = useRouter()
 
   const handleLogout = () => {
-    // Aquí podrías agregar lógica para limpiar el estado de autenticación
-    console.log("Cerrando sesión...")
+    // Limpiar autenticación y redirigir al login
+    authApi.logout()
     router.push('/login')
   }
 

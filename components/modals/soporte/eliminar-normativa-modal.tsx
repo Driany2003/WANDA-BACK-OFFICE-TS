@@ -5,14 +5,14 @@ import { X } from 'lucide-react'
 import { GradientButton } from '@/components/ui/gradient-button'
 import { GradientOutlineButton } from '@/components/ui/gradient-outline-button'
 import { AlertIcon } from "@/components/icons/soporte-icons"
-import { NotificationToast } from "@/components/ui/notification-toast"
-import { Normativa } from '@/types/soporte'
+import { normativasAPI, NormativaResponse } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
 
 interface EliminarNormativaModalProps {
   isOpen: boolean
   onClose: () => void
-  normativa: Normativa | null
-  onConfirm: (normativa: Normativa) => void
+  normativa: NormativaResponse | null
+  onConfirm: () => void
 }
 
 export function EliminarNormativaModal({
@@ -21,34 +21,29 @@ export function EliminarNormativaModal({
   normativa,
   onConfirm
 }: EliminarNormativaModalProps) {
-  // Estados para el toast
-  const [showToast, setShowToast] = useState(false)
-  const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
-  const [toastType, setToastType] = useState<"success" | "error">("success")
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false)
 
   if (!isOpen || !normativa) return null
 
-  const handleConfirm = () => {
-    onConfirm(normativa)
-    
-    // Mostrar toast de éxito
-    showToastMessage("success", "Normativa eliminada", "La normativa ha sido eliminada exitosamente")
-    
-    // Cerrar el modal después de un breve delay
-    setTimeout(() => {
-      onClose()
-    }, 1500)
-  }
+  const handleConfirm = async () => {
+    if (!normativa.normaId) return
 
-  const showToastMessage = (type: "success" | "error", title: string, message: string) => {
-    setToastType(type)
-    setToastMessage({ title, message })
-    setShowToast(true)
-    
-    // Ocultar el toast después de 5 segundos
-    setTimeout(() => {
-      setShowToast(false)
-    }, 5000)
+    try {
+      setIsLoading(true)
+      await normativasAPI.delete(normativa.normaId)
+      onConfirm()
+      onClose()
+    } catch (error: any) {
+      console.error("Error al eliminar normativa:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Error al eliminar la normativa",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -98,7 +93,7 @@ export function EliminarNormativaModal({
                 Estás por eliminar la siguiente normativa:
               </p>
               <p className="text-[18px] font-bold text-[#1C1C1C]">
-                {normativa.nombre}
+                {normativa.normaTitulo}
               </p>
               <p className="text-[14px] text-gray-600">
                 ¿Estás seguro de realizar dicha acción?
@@ -130,22 +125,12 @@ export function EliminarNormativaModal({
             type="button"
             onClick={handleConfirm}
             className="w-[138px] h-[40px]"
+            disabled={isLoading}
           >
-            Eliminar
+            {isLoading ? "Eliminando..." : "Eliminar"}
           </GradientButton>
         </div>
       </div>
-
-      {/* Toast notification */}
-      {showToast && (
-        <NotificationToast
-          type={toastType}
-          title={toastMessage.title}
-          message={toastMessage.message}
-          onClose={() => setShowToast(false)}
-          isVisible={showToast}
-        />
-      )}
     </div>
   )
 }

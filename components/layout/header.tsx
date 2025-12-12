@@ -5,6 +5,9 @@ import { Menu, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { BuscarIcon, MensajeIcon, CuentaIcon } from "@/components/icons/header-icons"
+import { getUserData } from "@/lib/auth"
+import { authApi } from "@/lib/api"
+import { useRouter } from "next/navigation"
 
 interface HeaderProps {
   onToggleSidebar?: () => void
@@ -12,8 +15,29 @@ interface HeaderProps {
 
 export const Header = memo(function Header({ onToggleSidebar }: HeaderProps) {
   const isMobile = useIsMobile()
+  const router = useRouter()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [userName, setUserName] = useState<string>('Usuario')
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Obtener nombre del usuario en sesión
+  useEffect(() => {
+    const userData = getUserData()
+    if (userData) {
+      // Intentar obtener el nombre completo (nombre + apellido)
+      if (userData.nombre && userData.apellido) {
+        setUserName(`${userData.nombre} ${userData.apellido}`)
+      } else if (userData.nombre) {
+        setUserName(userData.nombre)
+      } else if (userData.correo) {
+        setUserName(userData.correo)
+      } else if (userData.authUsername) {
+        setUserName(userData.authUsername)
+      } else if (userData.suscNombre) {
+        setUserName(userData.suscNombre)
+      }
+    }
+  }, [])
 
   const handleToggleSidebar = useCallback(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -98,7 +122,7 @@ export const Header = memo(function Header({ onToggleSidebar }: HeaderProps) {
             className="flex items-center gap-2 text-gray-600 hover:text-gray-800 bg-white shadow-[0_4px_10px_rgba(219,8,110,0.15)] rounded-lg px-3 py-2"
           >
             <CuentaIcon />
-            <span className="text-[14px] font-medium text-[#333333]">María</span>
+            <span className="text-[14px] font-medium text-[#333333]">{userName}</span>
             <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </Button>
           
@@ -121,13 +145,16 @@ export const Header = memo(function Header({ onToggleSidebar }: HeaderProps) {
                   >
                     Mi Cuenta
                   </Link>
-                  <Link 
-                    href="/login"
-                    onClick={handleCloseDropdown}
-                    className="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  <button
+                    onClick={() => {
+                      handleCloseDropdown()
+                      authApi.logout()
+                      router.push('/login')
+                    }}
+                    className="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                   >
                     Cerrar Sesión
-                  </Link>
+                  </button>
                 </div>
               </div>
             </>

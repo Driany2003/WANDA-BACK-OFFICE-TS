@@ -1,41 +1,108 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react"
+import { Eye, EyeOff, Mail, Lock } from "lucide-react"
+import { authApi } from "@/lib/api"
+import { isAuthenticated } from "@/lib/auth"
+import { getErrorMessage, validateEmail, validatePassword } from "@/lib/error-messages"
+
+interface FormErrors {
+  correo?: string
+  password?: string
+  general?: string
+}
 
 export default function LoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    email: '',
+    correo: '',
     password: ''
   })
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState<FormErrors>({})
+
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (isAuthenticated()) {
+      router.replace('/dashboard')
+    }
+  }, [router])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    setError('') // Limpiar error cuando el usuario empiece a escribir
+    // Limpiar error del campo cuando el usuario empiece a escribir
+    if (errors[field as keyof FormErrors]) {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[field as keyof FormErrors]
+        return newErrors
+      })
+    }
+    // Limpiar error general
+    if (errors.general) {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors.general
+        return newErrors
+      })
+    }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError('')
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {}
     
-    // Validar credenciales por defecto
-    if (formData.email === 'wanda@wanda.com' && formData.password === 'wanda') {
-      console.log("Login exitoso")
+    // Validar correo
+    const emailError = validateEmail(formData.correo)
+    if (emailError) {
+      newErrors.correo = emailError
+    }
+    
+    // Validar contraseña
+    const passwordError = validatePassword(formData.password)
+    if (passwordError) {
+      newErrors.password = passwordError
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validar formulario antes de enviar
+    if (!validateForm()) {
+      return
+    }
+    
+    setIsLoading(true)
+    setErrors({})
+    
+    try {
+      const response = await authApi.loginBackoffice(formData.correo, formData.password)
+      
+      // Si llegamos aquí, el login fue exitoso
+      // Limpiar estado de loading
+      setIsLoading(false)
+      
+      // Pequeño delay para asegurar que los tokens se guarden
       setTimeout(() => {
-        router.push('/transacciones')
-      }, 1000)
-    } else {
-      setError('Credenciales incorrectas. Usa "wanda" como usuario y contraseña.')
+        // Redirigir según el tipo de usuario usando replace para evitar volver atrás
+        if (response.tipoUsuario === 'SISTEMA') {
+          window.location.href = '/dashboard'
+        } else {
+          window.location.href = '/transacciones'
+        }
+      }, 100)
+    } catch (error: any) {
+      const errorMessage = getErrorMessage(error)
+      setErrors({ general: errorMessage })
       setIsLoading(false)
     }
   }
@@ -67,17 +134,17 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Mensaje de error */}
-          {error && (
+          {/* Mensaje de error general */}
+          {errors.general && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-              {error}
+              {errors.general}
             </div>
           )}
 
           {/* Formulario */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
 
-            {/* Email */}
+            {/* Correo */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Correo electrónico
@@ -87,12 +154,22 @@ export default function LoginPage() {
                 <Input
                   type="email"
                   placeholder="Ingresa tu correo electrónico"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="pl-10 bg-white border-gray-300 focus:border-[#DB086E] focus:ring-[#DB086E]"
-                  required
+                  value={formData.correo}
+                  onChange={(e) => handleInputChange('correo', e.target.value)}
+                  className={`pl-10 bg-white border-gray-300 focus:border-[#DB086E] focus:ring-[#DB086E] ${
+                    errors.correo ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''
+                  }`}
+                  onBlur={() => {
+                    const emailError = validateEmail(formData.correo)
+                    if (emailError) {
+                      setErrors(prev => ({ ...prev, correo: emailError }))
+                    }
+                  }}
                 />
               </div>
+              {errors.correo && (
+                <p className="mt-1 text-sm text-red-600">{errors.correo}</p>
+              )}
             </div>
 
             {/* Contraseña */}
@@ -107,8 +184,15 @@ export default function LoginPage() {
                   placeholder="Ingresa tu contraseña"
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
-                  className="pl-10 pr-10 bg-white border-gray-300 focus:border-[#DB086E] focus:ring-[#DB086E]"
-                  required
+                  className={`pl-10 pr-10 bg-white border-gray-300 focus:border-[#DB086E] focus:ring-[#DB086E] ${
+                    errors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''
+                  }`}
+                  onBlur={() => {
+                    const passwordError = validatePassword(formData.password)
+                    if (passwordError) {
+                      setErrors(prev => ({ ...prev, password: passwordError }))
+                    }
+                  }}
                 />
                 <button
                   type="button"
@@ -118,6 +202,9 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+              )}
             </div>
 
 

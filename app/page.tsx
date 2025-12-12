@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
 export default function HomePage() {
-  // Redirigir directamente a transacciones (página principal)
-  redirect('/transacciones')
+  // Redirigir al login por defecto, el AuthGuard manejará la redirección si está autenticado
+  redirect('/login')
 }

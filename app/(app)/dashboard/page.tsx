@@ -19,8 +19,10 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-lg text-gray-600 mt-2">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#DB086E] to-[#3A05DF] bg-clip-text text-transparent mb-0">
+            Dashboard
+          </h1>
+          <p className="text-lg text-gray-600 mt-2 mb-0">
             {format(new Date(), "EEEE dd/MM/yyyy", { locale: es })}
           </p>
         </div>

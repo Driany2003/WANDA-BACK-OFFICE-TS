@@ -65,8 +65,6 @@ const nextConfig = {
     maxInactiveAge: 30 * 1000,
     pagesBufferLength: 3,
   },
-  // Configuración para mejorar el rendimiento de las páginas
-  swcMinify: true,
 }
 
 export default nextConfig

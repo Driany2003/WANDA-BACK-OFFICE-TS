@@ -28,20 +28,15 @@ export function Concursos({ refreshTrigger }: ConcursosProps) {
   
   // Función para cargar concursos
   const loadConcursos = async () => {
-    if (loadingRef.current) {
-      console.log('🚫 Carga ya en progreso, saltando...')
-      return
-    }
+    if (loadingRef.current) return
     
     try {
       loadingRef.current = true
       setLoading(true)
       const data = await concursoApi.findAllForAdmin()
-      console.log('📋 Concursos cargados:', data)
-      console.log('🔍 Debug estado:', data.map(c => ({ id: c.concId, nombre: c.concNombre, estado: c.estado, tipo: typeof c.estado })))
       setConcursos(data)
     } catch (error) {
-      console.error('❌ Error al cargar concursos:', error)
+      console.error('Error al cargar concursos:', error)
     } finally {
       setLoading(false)
       loadingRef.current = false
@@ -72,12 +67,7 @@ export function Concursos({ refreshTrigger }: ConcursosProps) {
   }
 
   const handleRefresh = () => {
-    console.log("Refrescando concursos...")
     loadConcursos()
-  }
-
-  const handleDeleteSelected = () => {
-    console.log("Eliminando concursos seleccionados:", selectedItems)
   }
 
   const handleEditConcurso = (id: number) => {
@@ -98,58 +88,45 @@ export function Concursos({ refreshTrigger }: ConcursosProps) {
 
   const handleEditarConcurso = async (data: any) => {
     try {
-      console.log("Editando concurso:", data)
-      
-      // Preparar datos para actualización
       const updateData: ConcursoUpdateDTO = {
         concId: data.concId,
         concNombre: data.concNombre,
         concFechaPropuesta: data.concFechaPropuesta,
+        concHora: data.concHora,
         usuaId: data.usuaId,
         concWc: data.concWc,
         concImagen: data.concImagen,
         concIsActive: data.concIsActive
       }
       
-      // Usar updateWithImage - si hay nueva imagen la incluye, sino mantiene la actual
-      const result = await concursoApi.updateWithImage(updateData, data.nuevaImagen)
-      
-      console.log('✅ Concurso actualizado:', result)
-      
+      await concursoApi.updateWithImage(updateData, data.nuevaImagen)
       setIsEditarModalOpen(false)
-      loadConcursos() // Refresh la lista
-      
+      loadConcursos()
     } catch (error) {
-      console.error('❌ Error al actualizar concurso:', error)
+      console.error('Error al actualizar concurso:', error)
       alert(`Error: ${error instanceof Error ? error.message : 'Error al actualizar concurso'}`)
     }
   }
 
   const handleEliminarConcurso = async (concurso: ConcursoAdminDTO) => {
     try {
-      console.log("Eliminando concurso:", concurso)
-      
-      const result = await concursoApi.delete(concurso.concId)
-      console.log('✅ Concurso eliminado:', result)
-      
+      await concursoApi.delete(concurso.concId)
       setIsEliminarModalOpen(false)
-      loadConcursos() // Refresh la lista
-      
+      loadConcursos()
     } catch (error) {
-      console.error('❌ Error al eliminar concurso:', error)
+      console.error('Error al eliminar concurso:', error)
       alert(`Error: ${error instanceof Error ? error.message : 'Error al eliminar concurso'}`)
     }
   }
 
   const getEstadoColor = (estado: string) => {
-    switch (estado) {
-      case "Activo":
-        return "bg-[#6137E5] text-white"
-      case "Inactivo":
-        return "bg-[#FBFBFB] text-[#6137E5] border border-[#6137E5]"
-      default:
-        return "bg-[#FBFBFB] text-[#6137E5] border border-[#6137E5]"
-    }
+    return estado === "Activo" 
+      ? "bg-[#6137E5] text-white"
+      : "bg-[#FBFBFB] text-[#6137E5] border border-[#6137E5]"
+  }
+
+  const formatHora = (hora?: string) => {
+    return hora && hora.length >= 5 ? hora.substring(0, 5) : '-'
   }
 
   return (
@@ -168,18 +145,6 @@ export function Concursos({ refreshTrigger }: ConcursosProps) {
         >
           <RefreshCw className="w-5 h-5" />
         </Button>
-        {selectedItems.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDeleteSelected}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 6H5H21" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </Button>
-        )}
       </div>
 
       {/* Loading State */}
@@ -209,22 +174,25 @@ export function Concursos({ refreshTrigger }: ConcursosProps) {
             <table className="w-full table-fixed">
               <thead className="border-b border-gray-200" style={{ boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }}>
                 <tr>
-                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
                     Concursos
                   </th>
-                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
                     Fecha de transmisión
                   </th>
-                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                    Hora de inicio
+                  </th>
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
                     Anfitrión(a)
                   </th>
-                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
                     WC necesarias
                   </th>
-                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
                     Estado
                   </th>
-                  <th className="w-1/6 px-6 py-3 text-center text-sm font-medium text-gray-900">
+                  <th className="w-1/7 px-6 py-3 text-center text-sm font-medium text-gray-900">
                     Acciones
                   </th>
                 </tr>
@@ -250,6 +218,9 @@ export function Concursos({ refreshTrigger }: ConcursosProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
                       {new Date(item.concFechaPropuesta).toLocaleDateString('es-ES')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
+                      {formatHora(item.concHora)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-normal text-gray-900 text-center">
                       {item.nombreAnfitrion}

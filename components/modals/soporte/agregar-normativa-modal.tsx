@@ -7,11 +7,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { GradientButton } from '@/components/ui/gradient-button'
 import { GradientOutlineButton } from '@/components/ui/gradient-outline-button'
 import { CargarIcon } from '@/components/icons'
+import { AlertIcon } from '@/components/icons/soporte-icons'
+import { normativasAPI, NormativaResponse } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
 
 interface AgregarNormativaModalProps {
   isOpen: boolean
   onClose: () => void
-  onAdd: (data: { titulo: string; descripcion: string; archivo?: File; link: string; enviarAlerta: boolean }) => void
+  onAdd: (data: NormativaResponse) => void
 }
 
 export function AgregarNormativaModal({
@@ -19,6 +22,8 @@ export function AgregarNormativaModal({
   onClose,
   onAdd
 }: AgregarNormativaModalProps) {
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     titulo: '',
     descripcion: '',
@@ -27,12 +32,57 @@ export function AgregarNormativaModal({
     enviarAlerta: false
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (formData.titulo.trim() && formData.descripcion.trim()) {
-      onAdd(formData)
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    
+    if (!formData.titulo.trim()) {
+      toast({
+        title: "Error",
+        description: "El título es requerido",
+        variant: "destructive",
+      })
+      return
+    }
+    if (!formData.descripcion.trim()) {
+      toast({
+        title: "Error",
+        description: "La descripción es requerida",
+        variant: "destructive",
+      })
+      return
+    }
+    if (!formData.link.trim()) {
+      toast({
+        title: "Error",
+        description: "El link es requerido",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const response = await normativasAPI.createFromDTO({
+        normaTitulo: formData.titulo.trim(),
+        normaDescripcion: formData.descripcion.trim(),
+        normaLink: formData.link.trim(),
+        normaArchivo: formData.archivo,
+        normaEnviarAlerta: formData.enviarAlerta
+      })
+
+      onAdd(response)
       setFormData({ titulo: '', descripcion: '', archivo: undefined, link: '', enviarAlerta: false })
       onClose()
+    } catch (error: any) {
+      console.error("Error al crear normativa:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Error al crear la normativa",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -102,26 +152,28 @@ export function AgregarNormativaModal({
                 {/* Título */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">Título</label>
-                  <Input
-                    type="text"
-                    placeholder="Ingresa un título"
-                    value={formData.titulo}
-                    onChange={(e) => handleInputChange('titulo', e.target.value)}
-                    className="w-full sm:w-[484px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                    style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                  />
+                    <Input
+                      type="text"
+                      placeholder="Ingresa un título"
+                      value={formData.titulo}
+                      onChange={(e) => handleInputChange('titulo', e.target.value)}
+                      className="w-full sm:w-[484px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
+                      style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                      required
+                    />
                 </div>
 
                 {/* Descripción */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">Descripción</label>
-                  <Textarea
-                    placeholder="Ingresa una descripción"
-                    value={formData.descripcion}
-                    onChange={(e) => handleInputChange('descripcion', e.target.value)}
-                    className="w-full sm:w-[484px] h-[95px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm resize-none"
-                    style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                  />
+                    <Textarea
+                      placeholder="Ingresa una descripción"
+                      value={formData.descripcion}
+                      onChange={(e) => handleInputChange('descripcion', e.target.value)}
+                      className="w-full sm:w-[484px] h-[95px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm resize-none"
+                      style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                      required
+                    />
                 </div>
 
                 {/* Archivo */}
@@ -170,7 +222,7 @@ export function AgregarNormativaModal({
                   </div>
                   {/* Información de archivo */}
                   <div className="flex items-center gap-2 text-sm text-[#FF4444] mt-2">
-                    <span>⚠️</span>
+                    <AlertIcon />
                     <span>Puedes cargar un archivo / JPG, PNG / Máx 40 MB</span>
                   </div>
                 </div>
@@ -178,14 +230,15 @@ export function AgregarNormativaModal({
                 {/* Link */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">Link</label>
-                  <Input
-                    type="text"
-                    placeholder="Ingresa un link"
-                    value={formData.link}
-                    onChange={(e) => handleInputChange('link', e.target.value)}
-                    className="w-full sm:w-[484px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                    style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
-                  />
+                    <Input
+                      type="text"
+                      placeholder="Ingresa un link"
+                      value={formData.link}
+                      onChange={(e) => handleInputChange('link', e.target.value)}
+                      className="w-full sm:w-[484px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
+                      style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
+                      required
+                    />
                 </div>
 
                 {/* Checkbox para alerta automática */}
@@ -216,10 +269,11 @@ export function AgregarNormativaModal({
           </GradientOutlineButton>
           <GradientButton
             type="button"
-            onClick={() => handleSubmit({} as React.FormEvent)}
+            onClick={() => handleSubmit()}
             className="w-[138px] h-[40px]"
+            disabled={isLoading}
           >
-            Agregar
+            {isLoading ? "Agregando..." : "Agregar"}
           </GradientButton>
         </div>
       </div>

@@ -48,6 +48,7 @@ export default function SoportePage() {
   const [selectedDateRange, setSelectedDateRange] = useState("hoy")
   const [preguntasRefreshTrigger, setPreguntasRefreshTrigger] = useState(0)
   const [paginasRefreshTrigger, setPaginasRefreshTrigger] = useState(0)
+  const [normativasRefreshTrigger, setNormativasRefreshTrigger] = useState(0)
 
   // Manejar el parámetro tab de la URL
   useEffect(() => {
@@ -81,9 +82,10 @@ export default function SoportePage() {
     setIsAgregarPaginaEstaticaModalOpen(false)
   }
 
-  const handleAddNormativa = (data: { titulo: string; descripcion: string; archivo?: File; link: string; enviarAlerta: boolean }) => {
-    console.log("Agregando normativa:", data)
-    // Aquí iría la lógica para agregar la normativa
+  const handleAddNormativa = (data: any) => {
+    console.log("Normativa agregada exitosamente:", data)
+    setNormativasRefreshTrigger(prev => prev + 1)
+    setIsAgregarNormativaModalOpen(false)
   }
 
   const handleDateRangeChange = (value: string) => {
@@ -224,7 +226,7 @@ export default function SoportePage() {
 
         {/* Contenido de Normativa */}
         <TabsContent value="normativa" className="space-y-6 h-[600px] overflow-y-auto">
-          <Normativa />
+          <Normativa refreshTrigger={normativasRefreshTrigger} />
         </TabsContent>
 
         {/* Contenido de Reclamos */}

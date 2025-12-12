@@ -22,6 +22,7 @@ export const ConcursoImageUpload: React.FC<ConcursoImageUploadProps> = ({
 }) => {
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(existingImageUrl || null)
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Configuración específica para concursos
@@ -56,6 +57,9 @@ export const ConcursoImageUpload: React.FC<ConcursoImageUploadProps> = ({
       return
     }
 
+    // Guardar el nombre del archivo
+    setSelectedFileName(file.name)
+
     // Crear preview
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -70,6 +74,7 @@ export const ConcursoImageUpload: React.FC<ConcursoImageUploadProps> = ({
 
   const handleRemoveFile = () => {
     setPreviewUrl(null)
+    setSelectedFileName(null)
     setError(null)
     onImageChange(null, undefined) // Notificar que se eliminó la imagen
     if (fileInputRef.current) {
@@ -100,43 +105,38 @@ export const ConcursoImageUpload: React.FC<ConcursoImageUploadProps> = ({
         type="button"
         onClick={handleClick}
         disabled={disabled}
-        className={`w-full h-[40px] bg-white border border-gray-300 rounded-md text-left px-3 text-[#BBBBBB] font-semibold text-sm transition-colors flex items-center justify-between ${
+        className={`w-full h-[40px] bg-[#FBFBFB] border-none rounded-lg text-left px-3 text-[#BBBBBB] font-semibold text-sm transition-colors flex items-center justify-between ${
           disabled
             ? 'cursor-not-allowed opacity-50' 
-            : 'hover:border-gray-400 cursor-pointer'
+            : 'hover:bg-gray-50 cursor-pointer'
         }`}
         style={{ boxShadow: '0 4px 20px rgba(219, 8, 110, 0.08)' }}
       >
-        <span className="text-[14px] font-semibold">
+        <span className="text-sm font-semibold flex-1 text-left">
           {previewUrl ? 'Imagen del concurso seleccionada' : 'Seleccionar imagen del concurso'}
         </span>
-        <Upload className="w-4 h-4 text-gray-400" />
+        <Upload className="w-4 h-4 text-[#BBBBBB] flex-shrink-0" />
       </button>
 
       {/* Tags de imágenes seleccionadas */}
-      {previewUrl && (
+      {previewUrl && selectedFileName && (
         <div className="flex flex-wrap gap-2 mt-2">
           <div
-            className="bg-[#6137E5] text-white flex items-center gap-2 cursor-pointer hover:bg-[#5a2fd4] transition-colors"
+            className="bg-[#6137E5] text-white flex items-center gap-2"
             style={{ 
-              width: '84px', 
+              minWidth: '84px', 
               height: '24px', 
               borderRadius: '12px',
               padding: '0 8px'
             }}
-            onClick={() => {
-              onPreviewOpen?.() // Mostrar preview en modal padre
-            }}
           >
-            <Eye className="w-3 h-3" />
-            <span className="text-[12px] font-medium truncate">Ver</span>
+            <span className="text-[14px] font-medium truncate max-w-[60px]">
+              {selectedFileName}
+            </span>
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleRemoveFile()
-              }}
-              className="text-white hover:text-gray-200 transition-colors text-[16px] ml-1"
+              onClick={handleRemoveFile}
+              className="text-white hover:text-gray-200 transition-colors text-[16px] flex-shrink-0"
             >
               ×
             </button>

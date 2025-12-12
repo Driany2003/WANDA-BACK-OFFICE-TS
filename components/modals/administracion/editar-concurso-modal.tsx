@@ -13,8 +13,9 @@ import { es } from "date-fns/locale"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { anfitrionApi, AnfitrionDTO, ConcursoAdminDTO } from "@/lib/api"
+import { anfitrionApi, AnfitrionDTO, ConcursoAdminDTO, concursoApi, ConcursoResponse } from "@/lib/api"
 import { ConcursoImageUpload } from "@/components/shared/image-upload"
+import { HoraIcon } from "@/components/icons/configuraciones-icons"
 
 interface EditarConcursoModalProps {
   isOpen: boolean
@@ -27,13 +28,16 @@ interface EditarConcursoModalProps {
 export function EditarConcursoModal({ isOpen, onClose, concurso, onSave, onReopen }: EditarConcursoModalProps) {
   const [anfitriones, setAnfitriones] = useState<AnfitrionDTO[]>([])
   const [loadingAnfitriones, setLoadingAnfitriones] = useState(false)
-  const [imagenActual, setImagenActual] = useState<string>("")
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  const [concursoCompleto, setConcursoCompleto] = useState<ConcursoResponse | null>(null)
+  const [imagenExistente, setImagenExistente] = useState<string | undefined>(undefined)
   const [nuevaImagen, setNuevaImagen] = useState<File | null>(null)
   const [showImagePreview, setShowImagePreview] = useState(false)
   
   const [formData, setFormData] = useState({
     nombreConcurso: "",
     fecha: new Date(),
+    horaInicio: "",
     usuaId: 0,
     nombreAnfitrion: "",
     wcNecesarias: 0,
@@ -41,6 +45,79 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave, onReope
     imagenes: [] as File[],
     estado: false
   })
+
+  // Helper: Parsear fecha de string a Date
+  const parseFecha = (fechaString?: string): Date => {
+    if (!fechaString) return new Date()
+    try {
+      const fecha = new Date(fechaString)
+      return isNaN(fecha.getTime()) ? new Date() : fecha
+    } catch {
+      return new Date()
+    }
+  }
+
+  // Helper: Parsear hora de string a formato HH:mm
+  const parseTime = (timeString?: string): string => {
+    if (!timeString) return ""
+    // Si viene en formato HH:mm:ss, tomar solo HH:mm
+    if (timeString.length >= 5) {
+      return timeString.substring(0, 5)
+    }
+    return timeString
+  }
+
+  // Helper: Inicializar formData desde datos del concurso
+  const initializeFormData = (data: ConcursoResponse | ConcursoAdminDTO) => {
+    return {
+      nombreConcurso: data.concNombre || "",
+      fecha: parseFecha(data.concFechaPropuesta),
+      horaInicio: parseTime(data.concHora),
+      usuaId: data.usuaId || 0,
+      nombreAnfitrion: (data as ConcursoAdminDTO).nombreAnfitrion || (data as ConcursoResponse).nombreAnfitrion || "",
+      wcNecesarias: data.concWc || 0,
+      imagen: null,
+      imagenes: [],
+      estado: (data as ConcursoAdminDTO).estado === "Activo" || (data as ConcursoResponse).concIsActive === true
+    }
+  }
+
+  // Helper: Establecer imagen existente
+  const setImagenFromData = (data: ConcursoResponse | ConcursoAdminDTO) => {
+    if (data.concImagen) {
+      setImagenExistente(data.concImagen)
+    }
+  }
+
+  // Cargar datos completos del concurso cuando se abra el modal
+  useEffect(() => {
+    const fetchConcursoCompleto = async () => {
+      if (concurso?.concId && isOpen) {
+        try {
+          setIsLoadingData(true)
+          // Primero mostrar los datos que ya tenemos del listado
+          setFormData(initializeFormData(concurso))
+          setImagenFromData(concurso)
+          
+          // Luego cargar los datos actualizados
+          const data = await concursoApi.getById(concurso.concId)
+          setConcursoCompleto(data)
+          
+          // Actualizar el formulario con los datos más recientes
+          setFormData(initializeFormData(data))
+          setImagenFromData(data)
+        } catch (error) {
+          console.error('Error al cargar concurso:', error)
+          setFormData(initializeFormData(concurso))
+          setImagenFromData(concurso)
+        } finally {
+          setIsLoadingData(false)
+        }
+      }
+    }
+
+    fetchConcursoCompleto()
+  }, [concurso?.concId, isOpen])
 
   // Cargar anfitriones cuando se abra el modal
   useEffect(() => {
@@ -72,67 +149,44 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave, onReope
   }
 
   useEffect(() => {
-    if (concurso) {
-      console.log('Concurso recibido:', concurso)
-      console.log('Fecha original:', concurso.concFechaPropuesta)
-      
-      // Convertir el formato de fecha del backend a un objeto Date válido
-      let fecha = new Date()
-      try {
-        fecha = new Date(concurso.concFechaPropuesta)
-        console.log('Fecha convertida:', fecha)
-        
-        // Verificar que la fecha sea válida
-        if (isNaN(fecha.getTime())) {
-          console.warn('Fecha inválida, usando fecha actual')
-          fecha = new Date()
-        }
-      } catch (error) {
-        console.warn('Error al parsear fecha:', error)
-        fecha = new Date()
-      }
-      
-      // Buscar el anfitrión por nombre para obtener su ID
-      const anfitrionEncontrado = anfitriones.find(a => a.nombre === concurso.nombreAnfitrion)
-      
-      setFormData({
-        nombreConcurso: concurso.concNombre,
-        fecha: fecha,
-        usuaId: anfitrionEncontrado?.id || 0,
-        nombreAnfitrion: concurso.nombreAnfitrion,
-        wcNecesarias: concurso.concWc,
-        imagen: null,
-        imagenes: [],
-        estado: concurso.estado === "Activo"
-      })
-      
-      // Cargar la imagen actual del concurso
-      if (concurso.concImagen) {
-        setImagenActual(concurso.concImagen)
-        console.log('🖼️ Imagen actual cargada:', concurso.concImagen)
-      }
+    if (!isOpen) {
+      setFormData({ nombreConcurso: "", fecha: new Date(), horaInicio: "", usuaId: 0, nombreAnfitrion: "", wcNecesarias: 0, imagen: null, imagenes: [], estado: false })
+      setConcursoCompleto(null)
+      setImagenExistente(undefined)
+      setNuevaImagen(null)
+      setIsLoadingData(false)
     }
-  }, [concurso, anfitriones])
+  }, [isOpen])
 
-  if (!isOpen) return null
+  const removeImagenExistente = () => {
+    setImagenExistente(undefined)
+  }
+
+  const getFileName = (imageUrl: string): string => {
+    // Extraer el nombre del archivo de la URL
+    const parts = imageUrl.split('/')
+    const fileName = parts[parts.length - 1]
+    return fileName || 'Imagen'
+  }
+
+  // No mostrar el modal hasta que los datos estén cargados
+  if (!isOpen || !concurso || isLoadingData) return null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
     const updateData = {
-      concId: concurso.concId,
+      concId: concursoCompleto?.concId || concurso.concId,
       concNombre: formData.nombreConcurso,
-      concFechaPropuesta: format(formData.fecha, "yyyy-MM-dd HH:mm:ss"), // Formato que espera el backend
+      concFechaPropuesta: `${format(formData.fecha, "yyyy-MM-dd")} 00:00:00`,
+      concHora: formData.horaInicio || undefined,
       usuaId: formData.usuaId,
       concWc: formData.wcNecesarias,
-      concImagen: nuevaImagen ? "nueva_imagen" : concurso.concImagen, // Usar nueva imagen o mantener la actual
+      concImagen: nuevaImagen ? "nueva_imagen" : (imagenExistente || undefined),
       concIsActive: formData.estado,
-      nuevaImagen: nuevaImagen // Incluir la nueva imagen si existe
+      nuevaImagen: nuevaImagen
     }
     
-    console.log('📝 Datos para actualizar concurso:', updateData)
-    console.log('📸 Nueva imagen file:', nuevaImagen)
-    console.log('🖼️ Imagen actual:', concurso.concImagen)
     onSave(updateData)
     onClose()
   }
@@ -178,23 +232,24 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave, onReope
                 </h3>
                 
                 <div className="space-y-6 mt-4">
-                  {/* Nombre del concurso y Fecha - En la misma fila */}
+                  {/* Nombre del concurso */}
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#777777] mb-2">
+                      Nombre del concurso
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Nombre"
+                      value={formData.nombreConcurso}
+                      onChange={(e) => setFormData(prev => ({ ...prev, nombreConcurso: e.target.value }))}
+                      className="w-full sm:w-[484px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
+                      style={{ boxShadow: '0 4px 20px rgba(219,8,110,0.08)' }}
+                      required
+                    />
+                  </div>
+
+                  {/* Fecha y Hora de inicio - En la misma fila */}
                   <div className="flex gap-4">
-                    <div>
-                      <label className="block text-[12px] font-medium text-[#777777] mb-2">
-                        Nombre del concurso
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Nombre"
-                        value={formData.nombreConcurso}
-                        onChange={(e) => setFormData(prev => ({ ...prev, nombreConcurso: e.target.value }))}
-                        className="w-[230px] h-[40px] placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
-                        style={{ boxShadow: '0 4px 20px rgba(219,8,110,0.08)' }}
-                        required
-                      />
-                    </div>
-                    
                     <div>
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
                         Fecha
@@ -227,23 +282,39 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave, onReope
                         </PopoverContent>
                       </Popover>
                     </div>
+                    
+                    <div>
+                      <label className="block text-[12px] font-medium text-[#777777] mb-2">
+                        Hora de inicio
+                      </label>
+                      <div className="relative">
+                        <Input
+                          type="time"
+                          value={formData.horaInicio}
+                          onChange={(e) => setFormData(prev => ({ ...prev, horaInicio: e.target.value }))}
+                          className="w-[230px] h-[40px] pr-8 placeholder:text-[#BBBBBB] placeholder:font-semibold placeholder:text-sm"
+                          style={{ boxShadow: '0 4px 20px rgba(219,8,110,0.08)' }}
+                        />
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <HoraIcon />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Nombre anfitrión y WC necesarias - En la misma fila */}
                   <div className="flex gap-4">
                     <div>
                       <label className="block text-[12px] font-medium text-[#777777] mb-2">
-                        Nombre concurso
+                        Nombre anfitrión
                       </label>
                       <Select 
-                        value={formData.usuaId.toString()} 
+                        value={formData.usuaId > 0 ? formData.usuaId.toString() : undefined} 
                         onValueChange={handleAnfitrionChange}
                         disabled={loadingAnfitriones}
                       >
                         <SelectTrigger className="w-[230px] h-[40px] bg-[#FBFBFB] rounded-lg shadow-[0_4px_20px_rgba(219,8,110,0.08)] border-none">
-                          <SelectValue placeholder={loadingAnfitriones ? "Cargando..." : "Selecciona un anfitrión"}>
-                            {formData.nombreAnfitrion || (loadingAnfitriones ? "Cargando..." : "Selecciona un anfitrión")}
-                          </SelectValue>
+                          <SelectValue placeholder={loadingAnfitriones ? "Cargando..." : "Selecciona un anfitrión"} />
                         </SelectTrigger>
                         <SelectContent>
                           {anfitriones.map((anfitrion) => (
@@ -276,30 +347,45 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave, onReope
                     <label className="block text-[12px] font-medium text-[#777777] mb-2">Imagen</label>
                     
                     <ConcursoImageUpload
-                      onImageChange={(file, previewUrl) => {
-                        if (file) {
-                          setNuevaImagen(file)
-                          setFormData(prev => ({ 
-                            ...prev, 
-                            imagen: file,
-                            imagenes: [...prev.imagenes, file]
-                          }))
-                          console.log('📸 Nueva imagen seleccionada:', file.name)
-                        } else {
-                          setNuevaImagen(null)
-                          setFormData(prev => ({
-                            ...prev,
-                            imagen: null,
-                            imagenes: []
-                          }))
-                          console.log('🗑️ Imagen eliminada')
-                        }
+                      onImageChange={(file) => {
+                        setNuevaImagen(file || null)
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          imagen: file,
+                          imagenes: file ? [...prev.imagenes, file] : []
+                        }))
                       }}
-                      existingImageUrl={imagenActual ? (imagenActual.startsWith('/') ? `http://localhost:8080${imagenActual}` : imagenActual) : undefined}
-                      onPreviewOpen={() => setShowImagePreview(true)} // Mostrar preview
-                      onPreviewClose={() => setShowImagePreview(false)} // Ocultar preview
+                      existingImageUrl={imagenExistente ? (imagenExistente.startsWith('/') ? `http://localhost:8080${imagenExistente}` : imagenExistente) : undefined}
+                      onPreviewOpen={() => setShowImagePreview(true)}
+                      onPreviewClose={() => setShowImagePreview(false)}
                       className="mb-0"
                     />
+                    
+                    {/* Tag de imagen existente */}
+                    {imagenExistente && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <div
+                          className="bg-[#6137E5] text-white flex items-center gap-2"
+                          style={{ 
+                            minWidth: '84px', 
+                            height: '24px', 
+                            borderRadius: '12px',
+                            padding: '0 8px'
+                          }}
+                        >
+                          <span className="text-[14px] font-medium truncate max-w-[60px]">
+                            {getFileName(imagenExistente)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={removeImagenExistente}
+                            className="text-white hover:text-gray-200 transition-colors text-[16px] flex-shrink-0"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Estado - Debajo de la imagen */}
@@ -323,7 +409,7 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave, onReope
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-[10px] px-[20px] pb-6 justify-center">
+            <div className="flex gap-[10px] px-[20px] pb-6 justify-center -mt-10">
               <GradientOutlineButton
                 onClick={onClose}
                 className="w-[138px] h-[40px] text-red-500 border-red-500 hover:bg-red-50"
@@ -376,13 +462,12 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave, onReope
                       objectFit: 'contain'
                     }}
                     onError={(e) => {
-                      console.error('Error al cargar nueva imagen:', nuevaImagen.name);
                       e.currentTarget.style.display = 'none';
                     }}
                   />
-                ) : imagenActual ? (
+                ) : imagenExistente ? (
                   <img
-                    src={imagenActual.startsWith('/') ? `http://localhost:8080${imagenActual}` : imagenActual}
+                    src={imagenExistente.startsWith('/') ? `http://localhost:8080${imagenExistente}` : imagenExistente}
                     alt="Vista previa de la imagen actual"
                     className="rounded-lg shadow-lg"
                     style={{
@@ -393,7 +478,6 @@ export function EditarConcursoModal({ isOpen, onClose, concurso, onSave, onReope
                       objectFit: 'contain'
                     }}
                     onError={(e) => {
-                      console.error('Error al cargar imagen actual:', imagenActual);
                       e.currentTarget.style.display = 'none';
                     }}
                   />

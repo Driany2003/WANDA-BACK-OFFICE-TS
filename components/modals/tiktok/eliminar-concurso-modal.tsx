@@ -14,7 +14,7 @@ interface EliminarConcursoModalProps {
     id: string
     nombre: string
   }
-  onConfirm: (id: string) => void
+  onConfirm: (id: string) => Promise<void>
 }
 
 export function EliminarConcursoModal({ isOpen, onClose, concurso, onConfirm }: EliminarConcursoModalProps) {
@@ -22,19 +22,22 @@ export function EliminarConcursoModal({ isOpen, onClose, concurso, onConfirm }: 
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState({ title: "", message: "" })
   const [toastType, setToastType] = useState<"success" | "error">("success")
+  const [isLoading, setIsLoading] = useState(false)
 
   if (!isOpen) return null
 
-  const handleConfirm = () => {
-    onConfirm(concurso.id)
-    
-    // Mostrar toast de éxito
-    showToastMessage("success", "Concurso eliminado", "El concurso ha sido eliminado exitosamente")
-    
-    // Cerrar el modal después de un breve delay
-    setTimeout(() => {
+  const handleConfirm = async () => {
+    try {
+      setIsLoading(true)
+      await onConfirm(concurso.id)
+      
+      // Cerrar el modal inmediatamente
       onClose()
-    }, 1500)
+    } catch (error) {
+      // Mostrar toast de error
+      showToastMessage("error", "Error", "Error al eliminar el concurso")
+      setIsLoading(false)
+    }
   }
 
   const showToastMessage = (type: "success" | "error", title: string, message: string) => {
@@ -126,9 +129,10 @@ export function EliminarConcursoModal({ isOpen, onClose, concurso, onConfirm }: 
             <GradientButton
               type="button"
               onClick={handleConfirm}
+              disabled={isLoading}
               className="w-[138px] h-[40px]"
             >
-              Eliminar
+              {isLoading ? "Eliminando..." : "Eliminar"}
             </GradientButton>
           </div>
         </div>
